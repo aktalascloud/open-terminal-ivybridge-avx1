@@ -10,6 +10,8 @@ Download the single latest package, extract it and run `Install.cmd`. `Install.c
 
 One build combines current official source and reviewed fork patches. There are no separate stable/dev downloads.
 
+Extended Russian UI and menu translation; interpolation parameters are checked in every build.
+
 ## Patches
 
 | ID | Change | Source |

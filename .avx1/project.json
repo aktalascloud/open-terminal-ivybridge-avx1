@@ -4,7 +4,7 @@
   "upstream": "open-webui/open-terminal",
   "development": "main",
   "runner": "windows-2022",
-  "description": "Open Terminal for Windows and Ivy Bridge AVX1: agent/MCP fixes, child-process credential isolation and reproducible packages.",
+  "description": "Open Terminal for Windows/Ivy Bridge AVX1: agent/MCP fixes, credential isolation, Russian UI integration / дополненный русский интерфейс в WebUI и Desktop.",
   "repository": "aktalascloud/open-terminal-ivybridge-avx1",
   "channel": "latest",
   "upstream_commit": "3b80fc69c38c8d73c0910fc8fa29aba3ba974697",
