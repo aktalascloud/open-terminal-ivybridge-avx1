@@ -69,13 +69,15 @@ def build_python(project, package, manifest):
     def checked_script(script, *arguments):
         # --target installs do not process .pth files through PYTHONPATH alone.
         # pywin32 uses one to register its win32 paths and DLL directory.
-        launcher = "import runpy,site,sys;site.addsitedir(sys.argv[1]);sys.argv=sys.argv[2:];runpy.run_path(sys.argv[0],run_name='__main__')"
+        launcher = "import runpy,site,sys;from pathlib import Path;site.addsitedir(sys.argv[1]);sys.argv=sys.argv[2:];sys.path.insert(0,str(Path(sys.argv[0]).resolve().parent));runpy.run_path(sys.argv[0],run_name='__main__')"
         run(sys.executable, "-c", launcher, audit_target, script, *arguments)
     if project == "terminal":
         checked_script(ROOT / ".avx1/test_terminal.py")
     else:
         checked_script(ROOT / ".avx1/test_mcp_compat.py", "--source", ROOT / "backend/open_webui")
         checked_script(ROOT / ".avx1/bench_json.py")
+        checked_script(ROOT / ".avx1/test_frontend_browser.py")
+        manifest['security']['browser_smoke']='Chromium rendered the packaged login form without JavaScript page errors'
     bootstrap = package / "bootstrap"
     bootstrap.mkdir()
     run(sys.executable, "-m", "pip", "download", "--no-deps", "--only-binary=:all:", "pip", "--dest", bootstrap)
@@ -138,7 +140,7 @@ def build_conduit(package, manifest, channel):
     key.write_bytes(base64.b64decode(os.environ["CONDUIT_KEYSTORE_BASE64"], validate=True))
     properties.write_text(f"storeFile={key.as_posix()}\nstorePassword={password}\nkeyPassword={password}\nkeyAlias=conduit\n", encoding="utf-8")
     android = toolchains["android"]
-    environment = dict(os.environ, ORG_GRADLE_PROJECT_avx1Channel=channel,
+    environment = dict(os.environ,
                        ORG_GRADLE_PROJECT_avx1ApiLevel=str(android["api_level"]),
                        ORG_GRADLE_PROJECT_avx1MinorApiLevel=str(android["minor_api_level"]))
     manifest["android_sdk"] = android
@@ -165,15 +167,15 @@ def build_conduit(package, manifest, channel):
     manifest["optimization_scope"] = "Flutter release AOT, ARM64 only, icon tree shaking, R8 minification/resource shrinking, Dart obfuscation"
     manifest["security"] = {"flutter_tests": "passed", "apk_signature": "verified",
                             "dependency_review": "outdated report; not a complete vulnerability audit"}
-    manifest["application_id"] = "io.github.aktalascloud.conduit" + (".dev" if channel == "development" else "")
+    manifest["application_id"] = "io.github.aktalascloud.conduit"
     manifest["device_performance"] = "Not measured on a physical Android device"
 
 
 def main():
     project = json.loads((ROOT / ".avx1/project.json").read_text("utf-8"))
-    channel = os.environ.get("BUILD_CHANNEL", "development")
+    channel = os.environ.get("BUILD_CHANNEL", "latest")
     day = os.environ.get("BUILD_DAY") or dt.datetime.now(dt.timezone.utc).strftime("%Y%m%d")
-    if channel not in {"stable", "development"} or not re.fullmatch(r"\d{8}", day):
+    if channel != "latest" or not re.fullmatch(r"\d{8}", day):
         raise ValueError("Invalid build channel/date")
     if WORK.exists() or OUT.exists():
         raise RuntimeError("Use a fresh checkout for each build")

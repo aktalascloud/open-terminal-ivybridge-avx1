@@ -6,7 +6,8 @@
   "runner": "windows-2022",
   "description": "Open Terminal for Windows and Ivy Bridge AVX1: agent/MCP fixes, child-process credential isolation and reproducible packages.",
   "repository": "aktalascloud/open-terminal-ivybridge-avx1",
-  "channel": "development",
+  "channel": "latest",
   "upstream_commit": "3b80fc69c38c8d73c0910fc8fa29aba3ba974697",
-  "stable_tag": "v0.14.2"
+  "stable_tag": "v0.14.2",
+  "distribution": "single unified latest"
 }

@@ -6,7 +6,9 @@ Experimental builds for personal compatibility and performance testing. Upstream
 
 [Upstream project](https://github.com/open-webui/open-terminal) · [Packages](https://github.com/aktalascloud/open-terminal-ivybridge-avx1/releases)
 
-Extract the appropriate archive and run `Install.cmd`. `Install.cmd -CheckOnly` verifies integrity without installing. Packages exclude personal configuration, credentials, history, caches and model weights. Models download from Hugging Face on demand.
+Download the single latest package, extract it and run `Install.cmd`. `Install.cmd -CheckOnly` verifies integrity without installing. Packages exclude personal configuration, credentials, history, caches and model weights. Models download from Hugging Face on demand.
+
+One build combines current official source and reviewed fork patches. There are no separate stable/dev downloads.
 
 ## Patches
 
