@@ -117,7 +117,11 @@ def build_conduit(package, manifest, channel):
     password = os.environ["CONDUIT_KEYSTORE_PASSWORD"]
     key.write_bytes(base64.b64decode(os.environ["CONDUIT_KEYSTORE_BASE64"], validate=True))
     properties.write_text(f"storeFile={key.as_posix()}\nstorePassword={password}\nkeyPassword={password}\nkeyAlias=conduit\n", encoding="utf-8")
-    environment = dict(os.environ, ORG_GRADLE_PROJECT_avx1Channel=channel)
+    android = toolchains["android"]
+    environment = dict(os.environ, ORG_GRADLE_PROJECT_avx1Channel=channel,
+                       ORG_GRADLE_PROJECT_avx1ApiLevel=str(android["api_level"]),
+                       ORG_GRADLE_PROJECT_avx1MinorApiLevel=str(android["minor_api_level"]))
+    manifest["android_sdk"] = android
     try:
         symbols = WORK / "private-symbols"
         run(flutter, "build", "apk", "--release", "--split-per-abi", "--target-platform", "android-arm64",
