@@ -34,6 +34,7 @@ from starlette.formparsers import MultiPartParser, MultiPartException, parse_opt
 from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 
 from open_terminal.env import API_KEY, BINARY_FILE_MIME_PREFIXES, CORS_ALLOWED_ORIGINS, ENABLE_NOTEBOOKS, ENABLE_SYSTEM_PROMPT, ENABLE_TERMINAL, EXECUTE_DESCRIPTION, EXECUTE_TIMEOUT, FILE_BROWSER_ROOT, LOG_DIR, MAX_TERMINAL_SESSIONS, MULTI_USER, OPEN_TERMINAL_INFO, PROCESS_LOG_RETENTION, SESSION_CWD_TTL, SYSTEM_PROMPT, TERMINAL_TERM
+from open_terminal.env import sanitized_environ
 from open_terminal.utils.runner import PipeRunner, ProcessRunner, create_runner, read_pty, write_pty, PtyRunner
 from open_terminal.utils.fs import UserFS, FullFileResponse as FileResponse, TemporaryFileResponse, text_file_response, line_range_offsets
 from open_terminal.utils.limits import (CHUNK_SIZE, NormalizeNullQueryMiddleware, run_io, run_worker)
@@ -1543,7 +1544,7 @@ async def execute(
     session_cwd = _get_session_cwd(session_id, fs) if session_id else None
     cwd = fs.resolve_path(request.cwd, cwd=session_cwd) if request.cwd else (session_cwd or fs.home)
 
-    subprocess_env = {**os.environ, **request.env} if request.env else None
+    subprocess_env = sanitized_environ(request.env)
     runner = await create_runner(request.command, cwd, subprocess_env, run_as_user=fs.username)
 
     process_id = time.strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:6]
@@ -1938,7 +1939,7 @@ if ENABLE_TERMINAL:
                     shell_cmd = [os.environ.get("SHELL", "/bin/sh")]
                     cwd = session_cwd or os.getcwd()
 
-                spawn_env = os.environ.copy()
+                spawn_env = sanitized_environ()
                 spawn_env.setdefault("TERM", TERMINAL_TERM)
                 process = subprocess.Popen(
                     shell_cmd,
@@ -1969,7 +1970,7 @@ if ENABLE_TERMINAL:
 
         else:  # winpty
             shell = os.environ.get("COMSPEC", "cmd.exe")
-            spawn_env = os.environ.copy()
+            spawn_env = sanitized_environ()
             spawn_env.setdefault("TERM", TERMINAL_TERM)
             pty_proc = _WinPtyProcess.spawn(
                 [shell],
