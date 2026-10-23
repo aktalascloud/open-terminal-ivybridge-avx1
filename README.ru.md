@@ -12,8 +12,8 @@
 
 | ID | Изменение | Источник |
 |---|---|---|
-| TERM-001 | Служебные OPEN_TERMINAL_* не наследуются командами, терминалами и ядрами ноутбуков; остальные переменные сохраняются. | [upstream PR](https://github.com/open-webui/open-terminal/pull/128) |
-| TERM-002 | MCP stdio запускается без неподдерживаемых host/port. | [upstream PR](https://github.com/open-webui/open-terminal/pull/120) |
+| TERM-001 | Удаление унаследованных OPEN_TERMINAL_* из окружения shell, execute и notebook; учёт регистра Windows. | [PR](https://github.com/open-webui/open-terminal/pull/128) |
+| TERM-002 | FastMCP stdio запускается без HTTP-параметров host/port. | [PR](https://github.com/open-webui/open-terminal/pull/120) |
 
 ## Замеры
 
@@ -23,7 +23,7 @@
 | JSON на Ivy Bridge | Ожидает сравнения исходной и оптимизированной сборок |
 | Производительность на Android | Не измерена на физическом телефоне |
 
-Неизмеренные улучшения не выражаются процентами. Замер JSON относится только к сериализации/разбору, а не к tokens/s. PGO, LTO и флаги ISA применяются к указанным нативным компонентам; Python и TypeScript не становятся нативным кодом от этих флагов. AVX2/FMA и fast-math не включаются.
+Неизмеренные улучшения не выражаются процентами. Замер JSON относится только к сериализации/разбору, а не к tokens/s. LTO и флаги ISA применяются к указанным нативным компонентам; Python и TypeScript не становятся нативным кодом от этих флагов. AVX2/FMA и fast-math не включаются.
 
 ## Лицензии и совместимость
 

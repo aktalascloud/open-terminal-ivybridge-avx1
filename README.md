@@ -12,8 +12,8 @@ Extract the appropriate archive and run `Install.cmd`. `Install.cmd -CheckOnly` 
 
 | ID | Change | Source |
 |---|---|---|
-| TERM-001 | Strip inherited OPEN_TERMINAL_* credentials from shells, execution and notebook kernels; preserve application environment. | [upstream PR](https://github.com/open-webui/open-terminal/pull/128) |
-| TERM-002 | Do not pass host/port to FastMCP stdio transport. | [upstream PR](https://github.com/open-webui/open-terminal/pull/120) |
+| TERM-001 | Strip inherited OPEN_TERMINAL_* credentials from shells, execution and notebook kernels; preserve application environment. | [PR](https://github.com/open-webui/open-terminal/pull/128) |
+| TERM-002 | Do not pass host/port to FastMCP stdio transport. | [PR](https://github.com/open-webui/open-terminal/pull/120) |
 
 ## Measurements
 
@@ -23,7 +23,7 @@ Extract the appropriate archive and run `Install.cmd`. `Install.cmd -CheckOnly` 
 | JSON on Ivy Bridge | Pending stock/optimized comparison |
 | Android runtime performance | Not measured on a physical phone |
 
-Unmeasured changes have no claimed percentage. JSON timings cover serialization/parsing, not tokens/s. PGO, LTO and ISA flags apply only to the named native components; they do not turn Python or TypeScript into native code. AVX2/FMA and fast-math are not enabled.
+Unmeasured changes have no claimed percentage. JSON timings cover serialization/parsing, not tokens/s. LTO and ISA flags apply only to the named native components; they do not turn Python or TypeScript into native code. AVX2/FMA and fast-math are not enabled.
 
 ## Licensing and compatibility
 
