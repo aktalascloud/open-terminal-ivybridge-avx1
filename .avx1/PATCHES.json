@@ -1,0 +1,14 @@
+[
+  {
+    "id": "TERM-001",
+    "description": "Strip inherited OPEN_TERMINAL_* credentials from shells, execution and notebook kernels; preserve application environment.",
+    "source": "Adapted from Dmitry Rubtsov (mazzz1y), PR #128; extended to case-insensitive names and notebooks.",
+    "url": "https://github.com/open-webui/open-terminal/pull/128"
+  },
+  {
+    "id": "TERM-002",
+    "description": "Do not pass host/port to FastMCP stdio transport.",
+    "source": "Minimal transport fix discussed in PR #120; HTTP authentication changes not imported.",
+    "url": "https://github.com/open-webui/open-terminal/pull/120"
+  }
+]

@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field
 
 import nbformat
 from nbclient import NotebookClient
+from open_terminal.env import sanitized_environ
 
 
 # ---------------------------------------------------------------------------
@@ -180,7 +181,7 @@ def create_notebooks_router(verify_api_key) -> APIRouter:
         client = NotebookClient(nb, kernel_name=kernel_name, timeout=120)
         try:
             client.create_kernel_manager()
-            await client.async_start_new_kernel()
+            await client.async_start_new_kernel(env=sanitized_environ())
             await client.async_start_new_kernel_client()
         except BaseException as e:
             await _close_client(client)

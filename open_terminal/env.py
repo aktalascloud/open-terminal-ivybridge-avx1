@@ -3,6 +3,15 @@ import os
 from open_terminal import config
 
 
+def sanitized_environ(extra: dict | None = None) -> dict:
+    """Keep server credentials out of child processes (adapted from PR #128)."""
+    result = {key: value for key, value in os.environ.items()
+              if not key.upper().startswith("OPEN_TERMINAL_")}
+    if extra:
+        result.update(extra)
+    return result
+
+
 def _resolve_file_env(var: str, default: str = "") -> str:
     """Resolve an environment variable with Docker-secrets ``_FILE`` support.
 
