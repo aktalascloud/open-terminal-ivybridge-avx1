@@ -50,19 +50,46 @@ def write_json(path, value):
 
 SECRET_PATTERNS = [
     rb"-----BEGIN (?:RSA |EC |OPENSSH |ENCRYPTED )?PRIVATE KEY-----",
-    rb"gh[pousr]_[A-Za-z0-9]{30,}",
-    rb"github_pat_[A-Za-z0-9_]{40,}",
-    rb"sk-(?:proj-|svcacct-)?[A-Za-z0-9_-]{24,}",
+    rb"(?<![A-Za-z0-9_-])gh[pousr]_[A-Za-z0-9]{30,}",
+    rb"(?<![A-Za-z0-9_-])github_pat_[A-Za-z0-9_]{40,}",
+    rb"(?<![A-Za-z0-9_-])sk-(?:proj-|svcacct-)?[A-Za-z0-9_-]{24,}",
+    rb"(?<![A-Za-z0-9_-])hf_[A-Za-z0-9]{30,}",
     rb"[0-9]{8,12}:[A-Za-z0-9_-]{30,}",
 ]
+SECRET_PREFIXES = [(b'-----BEGIN ',),(b'ghp_',b'gho_',b'ghu_',b'ghs_',b'ghr_'),
+                   (b'github_pat_',),(b'sk-',),(b'hf_',),None]
 FORBIDDEN_PARTS = {".git", "__pycache__", ".venv", "node_modules", "logs", "cache", "uploads"}
 FORBIDDEN_SUFFIXES = {".db", ".sqlite", ".sqlite3", ".log", ".pdb", ".jks", ".p12", ".pem", ".key", ".gguf", ".safetensors"}
 
 
+class SecretPatternError(ValueError):
+    def __init__(self, label, number, matched):
+        self.metadata = {'file':label,'pattern_index':number,'length':len(matched),
+                         'match_sha256':hashlib.sha256(matched).hexdigest()}
+        super().__init__(f'Secret pattern in {label}; pattern={number}; length={len(matched)}; contents withheld')
+
+
 def scan_bytes(data, label):
     for content in (data, data.replace(b"\x00", b"")):
-        if any(re.search(pattern, content) for pattern in SECRET_PATTERNS):
-            raise ValueError(f"Secret pattern in {label}; contents withheld")
+        for number, pattern in enumerate(SECRET_PATTERNS):
+            expression=re.compile(pattern)
+            prefixes=SECRET_PREFIXES[number]
+            if prefixes is None:
+                # Telegram's numeric ID is before ':'. Match only those candidate positions.
+                colon=content.find(b':')
+                while colon>=0:
+                    for width in range(8,13):
+                        if colon>=width:
+                            match=expression.match(content,colon-width)
+                            if match:raise SecretPatternError(label,number,match.group(0))
+                    colon=content.find(b':',colon+1)
+            else:
+                for prefix in prefixes:
+                    position=content.find(prefix)
+                    while position>=0:
+                        match=expression.match(content,position)
+                        if match:raise SecretPatternError(label,number,match.group(0))
+                        position=content.find(prefix,position+1)
 
 
 def verify_archive(path):
