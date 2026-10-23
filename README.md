@@ -18,6 +18,7 @@ Extended Russian UI and menu translation; interpolation parameters are checked i
 |---|---|---|
 | TERM-001 | Strip inherited OPEN_TERMINAL_* credentials from shells, execution and notebook kernels; preserve application environment. | [PR](https://github.com/open-webui/open-terminal/pull/128) |
 | TERM-002 | Do not pass host/port to FastMCP stdio transport. | [PR](https://github.com/open-webui/open-terminal/pull/120) |
+| TERM-003 | Pin shared API/runtime dependencies to the tested Open WebUI-compatible versions; avoid upgrading its FastAPI/Pydantic during Terminal installation. | `.avx1/PATCHES.json` |
 
 ## Measurements
 

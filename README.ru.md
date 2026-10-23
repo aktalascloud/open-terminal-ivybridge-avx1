@@ -18,6 +18,7 @@
 |---|---|---|
 | TERM-001 | Удаление унаследованных OPEN_TERMINAL_* из окружения shell, execute и notebook; учёт регистра Windows. | [PR](https://github.com/open-webui/open-terminal/pull/128) |
 | TERM-002 | FastMCP stdio запускается без HTTP-параметров host/port. | [PR](https://github.com/open-webui/open-terminal/pull/120) |
+| TERM-003 | Общие зависимости API закреплены на проверенных версиях, совместимых с WebUI. | `.avx1/PATCHES.json` |
 
 ## Замеры
 

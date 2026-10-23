@@ -10,5 +10,10 @@
     "description": "Do not pass host/port to FastMCP stdio transport.",
     "source": "Minimal transport fix discussed in PR #120; HTTP authentication changes not imported.",
     "url": "https://github.com/open-webui/open-terminal/pull/120"
+  },
+  {
+    "id": "TERM-003",
+    "description": "Pin shared API/runtime dependencies to the tested Open WebUI-compatible versions; avoid upgrading its FastAPI/Pydantic during Terminal installation.",
+    "source": "Verified common-runtime compatibility."
   }
 ]
