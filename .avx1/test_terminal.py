@@ -34,6 +34,16 @@ class TerminalTests(unittest.TestCase):
 
 
 class SearchContextTests(unittest.TestCase):
+    def test_unicode_preview_keeps_text_and_trims_only_line_endings(self):
+        from open_terminal.utils.search_preview import bounded_match_content
+        self.assertEqual(bounded_match_content('коротко \t \r\n',0),'коротко \t ')
+        line='я'*1000+'needle '+'ь'*1000+'\r\r\n'
+        preview=bounded_match_content(line,1000)
+        self.assertIn('needle ',preview)
+        self.assertIn('of 2007]',preview)
+        self.assertNotIn('\r',preview)
+        self.assertLess(len(preview),400)
+
     @classmethod
     def setUpClass(cls):
         # A fresh service instance uses only a synthetic credential and temporary files.

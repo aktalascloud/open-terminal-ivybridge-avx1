@@ -1,33 +1,19 @@
 # Open Terminal · Ivy Bridge AVX1
 
-[English](README.md) · [Русский](README.ru.md)
+[English](README.md) · [Русский](README.ru.md) · [Upstream](https://github.com/open-webui/open-terminal) · [Releases](https://github.com/aktalascloud/open-terminal-ivybridge-avx1/releases/latest)
 
-Experimental builds for personal compatibility and performance testing. Upstream application names and interface branding are retained.
+Terminal/MCP backend for Windows. Russian UI comes through WebUI/Desktop.
 
-[Upstream project](https://github.com/open-webui/open-terminal) · [Packages](https://github.com/aktalascloud/open-terminal-ivybridge-avx1/releases)
+Download the latest ZIP, extract it and run `Install.cmd`.
 
-Download the single latest package, extract it and run `Install.cmd`. `Install.cmd -CheckOnly` verifies integrity without installing. Packages exclude personal configuration, credentials, history, caches and model weights. Models download from Hugging Face on demand.
+## Changes
 
-One build combines current official source and reviewed fork patches. There are no separate stable/dev downloads.
+- Bounded grep without losing long-line matches: adapted [#144](https://github.com/open-webui/open-terminal/pull/144).
+- Our new preview avoids copying the whole line.
+- Credential isolation, MCP stdio and compatible WebUI dependencies. [Full patch list](.avx1/PATCHES.json).
 
-Extended Russian UI and menu translation; interpolation parameters are checked in every build.
+## Evidence
 
-## Patches
+On an actual Xeon E5-2697 v2, the new preview reduced authenticated grep API CPU cost by **9.20–13.18%** versus the previous fork release in two independent runs. Preview construction alone used **99.73% less CPU time**. Outputs match in 108 Unicode/EOL cases per run. Fixture: one synthetic 2 MB JSON line. Small-file performance and LLM tokens/s are not inferred. [Samples and method](.avx1/measurements/grep-cpu-20261024.json) · [Reproduce](.avx1/bench_search_cpu.py).
 
-| ID | Change | Source |
-|---|---|---|
-| TERM-001 | Strip inherited OPEN_TERMINAL_* credentials from shells, execution and notebook kernels; preserve application environment. | [PR](https://github.com/open-webui/open-terminal/pull/128) |
-| TERM-002 | Do not pass host/port to FastMCP stdio transport. | [PR](https://github.com/open-webui/open-terminal/pull/120) |
-| TERM-003 | Pin shared API/runtime dependencies to the tested Open WebUI-compatible versions; avoid upgrading its FastAPI/Pydantic during Terminal installation. | `.avx1/PATCHES.json` |
-
-## Measurements
-
-Grep previews are bounded around the actual match, including matches in long JSON and minified code. A synthetic 2,000,006-character line produced 349 preview characters: **99.98% less match content**. This is an output/context-size measurement; LLM inference speed was not measured. Adapted from [PR #144](https://github.com/open-webui/open-terminal/pull/144), retaining long-line results.
-
-The application and search handler use Python. Compiler flags apply to native dependencies; runtime or LLM speed percentages require separate measurements.
-
-## Licensing and compatibility
-
-Original licenses, notices and license history are preserved. Each binary package includes its corresponding source. Runtime credentials, settings, logs and data are excluded.
-
-Local deployment additionally checks the owner's private filter and Telegram bridge. Their source, settings and data are not published. Unreviewed PR/fork changes remain candidates; accepted upstream fixes arrive through merges of official branches.
+Original licenses/notices and source history are preserved. Exact corresponding source is linked from each release. Credentials, logs, models and private filter/bridge code stay outside the public packages.

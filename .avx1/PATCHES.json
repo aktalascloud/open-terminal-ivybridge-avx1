@@ -21,5 +21,10 @@
     "description": "Bound grep match previews to prevent LLM context flooding; preserve long JSON/minified-code matches and center the preview on the match. Do not silently skip long lines.",
     "source": "Adapted from the problem and output cap in upstream PR #144; long-line matching is retained.",
     "url": "https://github.com/open-webui/open-terminal/pull/144"
+  },
+  {
+    "id": "TERM-005",
+    "description": "Avoid copying a whole multi-megabyte line when building a bounded grep preview; preserve exact Unicode/trailing-EOL output. CPU measurements use the real grep API.",
+    "source": "owner-authored; measured on Ivy Bridge"
   }
 ]

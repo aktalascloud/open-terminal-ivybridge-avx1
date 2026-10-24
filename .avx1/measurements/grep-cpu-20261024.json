@@ -1,0 +1,73 @@
+{
+  "date": "2026-10-24",
+  "cpu": "Intel Xeon E5-2697 v2 / Ivy Bridge",
+  "scope": "Synthetic 2MB single-line JSON; authenticated /files/grep CPU cost, not model throughput. Released preview vs slice-only preview returns identical output. Two independent runs; process CPU time includes all ASGI worker threads.",
+  "source_sha256": "5524e211140829e6e1428bce334f3ed272760abd077c29cc4e09d8802cd9922d",
+  "semantic_comparisons_per_run": 108,
+  "runs": [
+    {
+      "api_cpu_median_ns": {
+        "released_preview": 10195312.5,
+        "slice_only_preview": 9257812.5
+      },
+      "api_samples_cpu_ns": {
+        "released_preview": [
+          10156250.0,
+          10156250.0,
+          11015625.0,
+          10703125.0,
+          10234375.0,
+          9921875.0
+        ],
+        "slice_only_preview": [
+          8750000.0,
+          9062500.0,
+          9453125.0,
+          9453125.0,
+          9609375.0,
+          9062500.0
+        ]
+      },
+      "api_cpu_time_reduction_percent": 9.195402298850574,
+      "preview_cpu_median_ns": {
+        "released_preview": 1218750.0,
+        "slice_only_preview": 3173.828125
+      },
+      "preview_cpu_time_reduction_percent": 99.73958333333334
+    },
+    {
+      "api_cpu_median_ns": {
+        "released_preview": 11562500.0,
+        "slice_only_preview": 10039062.5
+      },
+      "api_samples_cpu_ns": {
+        "released_preview": [
+          11562500.0,
+          11562500.0,
+          12109375.0,
+          11484375.0,
+          11953125.0,
+          11562500.0
+        ],
+        "slice_only_preview": [
+          9921875.0,
+          9765625.0,
+          10390625.0,
+          10000000.0,
+          10078125.0,
+          10156250.0
+        ]
+      },
+      "api_cpu_time_reduction_percent": 13.17567567567568,
+      "preview_cpu_median_ns": {
+        "released_preview": 1171875.0,
+        "slice_only_preview": 3173.828125
+      },
+      "preview_cpu_time_reduction_percent": 99.72916666666667
+    }
+  ],
+  "improvement_range_percent": [
+    9.195402298850574,
+    13.17567567567568
+  ]
+}
