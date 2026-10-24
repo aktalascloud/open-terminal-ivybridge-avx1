@@ -15,5 +15,11 @@
     "id": "TERM-003",
     "description": "Pin shared API/runtime dependencies to the tested Open WebUI-compatible versions; avoid upgrading its FastAPI/Pydantic during Terminal installation.",
     "source": "Verified common-runtime compatibility."
+  },
+  {
+    "id": "TERM-004",
+    "description": "Bound grep match previews to prevent LLM context flooding; preserve long JSON/minified-code matches and center the preview on the match. Do not silently skip long lines.",
+    "source": "Adapted from the problem and output cap in upstream PR #144; long-line matching is retained.",
+    "url": "https://github.com/open-webui/open-terminal/pull/144"
   }
 ]

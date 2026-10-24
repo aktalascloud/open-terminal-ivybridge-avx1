@@ -34,6 +34,7 @@ from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 
 from open_terminal.dependencies import get_filesystem, verify_api_key
 from open_terminal.env import API_KEY, BINARY_FILE_MIME_PREFIXES, CORS_ALLOWED_ORIGINS, ENABLE_NOTEBOOKS, ENABLE_SYSTEM_PROMPT, ENABLE_TERMINAL, EXECUTE_DESCRIPTION, EXECUTE_TIMEOUT, FILE_BROWSER_ROOT, LOG_DIR, MAX_TERMINAL_SESSIONS, MULTI_USER, OPEN_TERMINAL_INFO, PROCESS_LOG_RETENTION, SESSION_CWD_TTL, SYSTEM_PROMPT, TERMINAL_TERM
+from open_terminal.utils.search_preview import bounded_match_content
 from open_terminal.env import sanitized_environ
 from open_terminal.utils.runner import PipeRunner, ProcessRunner, create_runner, read_pty, write_pty, PtyRunner
 from open_terminal.utils.fs import UserFS, FullFileResponse as FileResponse, TemporaryFileResponse, text_file_response, line_range_offsets
@@ -1016,13 +1017,13 @@ async def grep_search(
             try:
                 with open(file_path, "r", encoding="utf-8", errors="strict") as f:
                     for line_number, line in enumerate(f, 1):
-                        if pattern.search(line):
+                        if match := pattern.search(line):
                             if match_per_line:
                                 matches.append(
                                     {
                                         "file": file_path,
                                         "line": line_number,
-                                        "content": line.rstrip("\n\r"),
+                                        "content": bounded_match_content(line, match.start()),
                                     }
                                 )
                                 if len(matches) >= max_results:

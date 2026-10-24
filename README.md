@@ -22,6 +22,8 @@ Extended Russian UI and menu translation; interpolation parameters are checked i
 
 ## Measurements
 
+Grep previews are bounded around the actual match, including matches in long JSON and minified code. A synthetic 2,000,006-character line produced 349 preview characters: **99.98% less match content**. This is an output/context-size measurement; LLM inference speed was not measured. Adapted from [PR #144](https://github.com/open-webui/open-terminal/pull/144), retaining long-line results.
+
 | Metric | Verified improvement |
 |---|---|
 | LLM generation throughput | Not measured |
