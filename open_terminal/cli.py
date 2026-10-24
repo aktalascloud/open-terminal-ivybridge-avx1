@@ -128,8 +128,15 @@ def run(
         click.echo(click.style("  └─────────────────────────────────────────────────────────────┘", fg="yellow"))
         click.echo()
 
-    from open_terminal.env import UVICORN_LOOP
-    uvicorn.run("open_terminal.main:app", host=host, port=port, loop=UVICORN_LOOP)
+    from open_terminal.env import UVICORN_LOOP, UVICORN_TIMEOUT_KEEP_ALIVE
+
+    uvicorn_options = {}
+    if UVICORN_TIMEOUT_KEEP_ALIVE is not None:
+        uvicorn_options["timeout_keep_alive"] = UVICORN_TIMEOUT_KEEP_ALIVE
+    uvicorn.run(
+        "open_terminal.main:app", host=host, port=port, loop=UVICORN_LOOP,
+        **uvicorn_options,
+    )
 
 
 @main.command()

@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.14.4] - 2026-10-24
+
+### Added
+
+- Optional HTTP keep-alive timeout configuration through `OPEN_TERMINAL_UVICORN_TIMEOUT_KEEP_ALIVE` or `uvicorn_timeout_keep_alive` in TOML. Unset by default, preserving Uvicorn's default behavior.
+
+## [0.14.3] - 2026-10-24
+
+### Fixed
+
+- Fixed Docker startup when outbound network restrictions are enabled. Allowed websites can now be reached, and startup preserves the configured API key, settings, and command arguments. Applies to the default, slim, and Alpine images.
+- Blocked domain names can no longer be looked up by contacting Docker's name lookup service directly, including when all outbound access is disabled.
+- Docker startup now stops if the requested network restrictions cannot be applied, instead of continuing without those restrictions.
+- Commands, interactive terminals, and notebooks no longer automatically receive Open Terminal's API key and server settings. This reduces accidental exposure when programs print their environment settings. Other environment settings and values explicitly supplied for a command are preserved.
+- In multi-user mode, changing folders no longer changes another user's current folder when both users share the same session ID. File operations and commands keep using each user's own selected folder.
+- Changing to a missing folder or a file in multi-user mode now returns an error and keeps the previous folder selected.
+- Connected apps must now identify the user when accessing a workspace in multi-user mode. Requests without a user ID are rejected instead of using the server account's workspace. Single-user mode still works without a user ID.
+- Notebooks now run under the requesting user's account in multi-user mode, with that user's home folder and file permissions. Opening and saving notebooks also follows the same workspace checks as other file operations.
+- Notebook sessions now belong to the user who started them. Other users cannot run cells, view session details, or stop those sessions through the notebook controls.
+
 ## [0.14.2] - 2026-10-19
 
 ### Fixed

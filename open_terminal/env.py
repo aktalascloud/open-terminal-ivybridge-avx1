@@ -3,13 +3,12 @@ import os
 from open_terminal import config
 
 
-def sanitized_environ(extra: dict | None = None) -> dict:
-    """Keep server credentials out of child processes (adapted from PR #128)."""
-    result = {key: value for key, value in os.environ.items()
-              if not key.upper().startswith("OPEN_TERMINAL_")}
+def sanitized_environ(extra: dict[str, str] | None = None) -> dict[str, str]:
+    """Exclude inherited server settings; explicit command overrides still win."""
+    env = {key: value for key, value in os.environ.items() if not key.upper().startswith("OPEN_TERMINAL_")}
     if extra:
-        result.update(extra)
-    return result
+        env.update(extra)
+    return env
 
 
 def _resolve_file_env(var: str, default: str = "") -> str:
@@ -164,6 +163,14 @@ UVICORN_LOOP = os.environ.get(
     "OPEN_TERMINAL_UVICORN_LOOP",
     config.get("uvicorn_loop", "auto"),
 )
+
+UVICORN_TIMEOUT_KEEP_ALIVE: float | None = None
+_uvicorn_timeout_keep_alive = os.environ.get(
+    "OPEN_TERMINAL_UVICORN_TIMEOUT_KEEP_ALIVE",
+    config.get("uvicorn_timeout_keep_alive"),
+)
+if _uvicorn_timeout_keep_alive is not None:
+    UVICORN_TIMEOUT_KEEP_ALIVE = float(_uvicorn_timeout_keep_alive)
 
 OPEN_TERMINAL_INFO = os.environ.get(
     "OPEN_TERMINAL_INFO",

@@ -113,34 +113,24 @@ fix_home() {
 # permanently dropped so the rules can't be undone from inside.
 #
 setup_egress_firewall() {
-    # Not configured — allow everything
-    if [ "${OPEN_TERMINAL_ALLOWED_DOMAINS+set}" != "set" ]; then
-        return 1  # signal caller: no firewall, just exec normally
-    fi
-
     if ! command -v iptables >/dev/null 2>&1; then
-        echo "WARNING: iptables not found — skipping egress firewall"
-        return 1
+        echo "ERROR: iptables is required for egress filtering" >&2
+        exit 1
     fi
 
     # Flush any prior OUTPUT rules
     iptables -F OUTPUT 2>/dev/null || true
 
-    # Always allow loopback + established connections
-    iptables -A OUTPUT -o lo -j ACCEPT
-    iptables -A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+    # Capture upstream DNS before replacing resolv.conf, including in deny-all mode.
+    UPSTREAM_DNS=$(grep -m1 '^nameserver' /etc/resolv.conf | awk '{print $2}')
+    UPSTREAM_DNS="${UPSTREAM_DNS:-8.8.8.8}"
 
     if [ -z "$OPEN_TERMINAL_ALLOWED_DOMAINS" ]; then
         # ── Deny-all mode ──────────────────────────────────────────────
         echo "Egress: blocking ALL outbound traffic"
-        iptables -A OUTPUT -j DROP
     else
         # ── Restricted mode (DNS whitelist + ipset) ────────────────────
         echo "Egress: DNS whitelist — $OPEN_TERMINAL_ALLOWED_DOMAINS"
-
-        # Grab the current upstream nameserver before we override resolv.conf
-        UPSTREAM_DNS=$(grep -m1 '^nameserver' /etc/resolv.conf | awk '{print $2}')
-        UPSTREAM_DNS="${UPSTREAM_DNS:-8.8.8.8}"
 
         # Create ipset for dynamically resolved IPs
         ipset create allowed hash:ip -exist
@@ -151,6 +141,7 @@ setup_egress_firewall() {
         #   - Auto-add resolved IPs to the 'allowed' ipset
         mkdir -p /etc/dnsmasq.d
         {
+            echo "user=dnsmasq"
             echo "no-resolv"
             echo "no-hosts"
             echo "listen-address=127.0.0.1"
@@ -176,15 +167,32 @@ setup_egress_firewall() {
         # Point the container at our local resolver
         echo "nameserver 127.0.0.1" > /etc/resolv.conf
 
-        # Allow ONLY resolved IPs (via ipset) + block everything else
-        iptables -A OUTPUT -p udp --dport 53 -j DROP       # block external DNS
-        iptables -A OUTPUT -p tcp --dport 53 -j DROP       # block external DNS
-        iptables -A OUTPUT -m set --match-set allowed dst -j ACCEPT
-        iptables -A OUTPUT -j DROP                          # drop everything else
+        # Match the original destination: Docker rewrites its embedded DNS port.
+        # Check DNS before allowing loopback or established connections.
+        for protocol in udp tcp; do
+            iptables -A OUTPUT -p "$protocol" -m conntrack --ctdir ORIGINAL \
+                --ctorigdst "$UPSTREAM_DNS" --ctorigdstport 53 \
+                -m owner --uid-owner dnsmasq -j ACCEPT
+            iptables -A OUTPUT -p "$protocol" -m conntrack --ctdir ORIGINAL \
+                --ctorigdst 127.0.0.1 --ctorigdstport 53 -j ACCEPT
+        done
     fi
 
+    # Also block Docker's loopback DNS in deny-all mode.
+    for protocol in udp tcp; do
+        iptables -A OUTPUT -p "$protocol" -m conntrack --ctdir ORIGINAL \
+            --ctorigdstport 53 -j DROP
+    done
+    # Prevent direct access to Docker DNS's translated high ports as well.
+    iptables -A OUTPUT -o lo -d "$UPSTREAM_DNS" -j DROP
+    iptables -A OUTPUT -o lo -j ACCEPT
+    iptables -A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+    if [ -n "$OPEN_TERMINAL_ALLOWED_DOMAINS" ]; then
+        iptables -A OUTPUT -m set --match-set allowed dst -j ACCEPT
+    fi
+    iptables -A OUTPUT -j DROP
+
     echo "Egress firewall active — dropping CAP_NET_ADMIN permanently"
-    return 0  # signal caller: firewall is active, use capsh
 }
 
 
@@ -199,19 +207,10 @@ fix_home
 export HOME="/home/user"
 export PATH="/home/user/.local/bin:${PATH}"
 
-# Try to set up the egress firewall (requires running as root / CAP_NET_ADMIN).
-# If the firewall was configured, drop capabilities and switch to the app user.
-# If not, just switch to the app user normally.
-if setup_egress_firewall; then
-    # Firewall is active — drop CAP_NET_ADMIN and exec as user
-    if command -v capsh >/dev/null 2>&1; then
-        exec capsh --drop=cap_net_admin -- -c "
-            exec $(command -v gosu 2>/dev/null || command -v su-exec 2>/dev/null || echo exec) \
-                user open-terminal $*
-        "
-    else
-        drop_to_user open-terminal "$@"
-    fi
+# Call setup outside a conditional so failures stop startup under set -e.
+if [ "${OPEN_TERMINAL_ALLOWED_DOMAINS+set}" = "set" ]; then
+    setup_egress_firewall
+    exec capsh --drop=cap_net_admin --user=user -- -c 'exec open-terminal "$@"' -- "$@"
 else
     drop_to_user open-terminal "$@"
 fi

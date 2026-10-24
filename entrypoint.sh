@@ -94,28 +94,23 @@ fi
 # -----------------------------------------------------------------------
 if [ "${OPEN_TERMINAL_ALLOWED_DOMAINS+set}" = "set" ]; then
     if ! command -v iptables &>/dev/null; then
-        echo "WARNING: iptables not found — skipping egress firewall"
-        exec open-terminal "$@"
+        echo "ERROR: iptables is required for egress filtering" >&2
+        exit 1
     fi
 
     # Flush any prior OUTPUT rules
     sudo iptables -F OUTPUT 2>/dev/null || true
 
-    # Always allow loopback + established connections
-    sudo iptables -A OUTPUT -o lo -j ACCEPT
-    sudo iptables -A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+    # Capture upstream DNS before replacing resolv.conf, including in deny-all mode.
+    UPSTREAM_DNS=$(grep -m1 '^nameserver' /etc/resolv.conf | awk '{print $2}')
+    UPSTREAM_DNS="${UPSTREAM_DNS:-8.8.8.8}"
 
     if [ -z "$OPEN_TERMINAL_ALLOWED_DOMAINS" ]; then
         # ── Deny-all mode ──────────────────────────────────────────────
         echo "Egress: blocking ALL outbound traffic"
-        sudo iptables -A OUTPUT -j DROP
     else
         # ── Restricted mode (DNS whitelist + ipset) ────────────────────
         echo "Egress: DNS whitelist — $OPEN_TERMINAL_ALLOWED_DOMAINS"
-
-        # Capture the current upstream nameserver before we override resolv.conf
-        UPSTREAM_DNS=$(grep -m1 '^nameserver' /etc/resolv.conf | awk '{print $2}')
-        UPSTREAM_DNS="${UPSTREAM_DNS:-8.8.8.8}"
 
         # Create ipset for dynamically resolved IPs
         sudo ipset create allowed hash:ip -exist
@@ -126,6 +121,7 @@ if [ "${OPEN_TERMINAL_ALLOWED_DOMAINS+set}" = "set" ]; then
         #   - Auto-add resolved IPs to the 'allowed' ipset
         sudo mkdir -p /etc/dnsmasq.d
         {
+            echo "user=dnsmasq"
             echo "no-resolv"
             echo "no-hosts"
             echo "listen-address=127.0.0.1"
@@ -151,15 +147,33 @@ if [ "${OPEN_TERMINAL_ALLOWED_DOMAINS+set}" = "set" ]; then
         # Point the container at our local resolver
         echo "nameserver 127.0.0.1" | sudo tee /etc/resolv.conf > /dev/null
 
-        # iptables: allow ONLY resolved IPs (via ipset) + block everything else
-        sudo iptables -A OUTPUT -p udp --dport 53 -j DROP       # block external DNS
-        sudo iptables -A OUTPUT -p tcp --dport 53 -j DROP       # block external DNS
-        sudo iptables -A OUTPUT -m set --match-set allowed dst -j ACCEPT  # allow resolved IPs
-        sudo iptables -A OUTPUT -j DROP                          # drop everything else
+        # Match the original destination: Docker rewrites its embedded DNS port.
+        # Check DNS before allowing loopback or established connections.
+        for protocol in udp tcp; do
+            sudo iptables -A OUTPUT -p "$protocol" -m conntrack --ctdir ORIGINAL \
+                --ctorigdst "$UPSTREAM_DNS" --ctorigdstport 53 \
+                -m owner --uid-owner dnsmasq -j ACCEPT
+            sudo iptables -A OUTPUT -p "$protocol" -m conntrack --ctdir ORIGINAL \
+                --ctorigdst 127.0.0.1 --ctorigdstport 53 -j ACCEPT
+        done
     fi
 
+    # Also block Docker's loopback DNS in deny-all mode.
+    for protocol in udp tcp; do
+        sudo iptables -A OUTPUT -p "$protocol" -m conntrack --ctdir ORIGINAL \
+            --ctorigdstport 53 -j DROP
+    done
+    # Prevent direct access to Docker DNS's translated high ports as well.
+    sudo iptables -A OUTPUT -o lo -d "$UPSTREAM_DNS" -j DROP
+    sudo iptables -A OUTPUT -o lo -j ACCEPT
+    sudo iptables -A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+    if [ -n "$OPEN_TERMINAL_ALLOWED_DOMAINS" ]; then
+        sudo iptables -A OUTPUT -m set --match-set allowed dst -j ACCEPT
+    fi
+    sudo iptables -A OUTPUT -j DROP
+
     echo "Egress firewall active — dropping CAP_NET_ADMIN permanently"
-    exec capsh --drop=cap_net_admin -- -c "exec open-terminal $*"
+    exec sudo -E PATH="$PATH" capsh --drop=cap_net_admin --user=user -- -c 'exec open-terminal "$@"' -- "$@"
 fi
 
 exec open-terminal "$@"

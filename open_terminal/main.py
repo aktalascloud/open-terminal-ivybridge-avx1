@@ -29,10 +29,10 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request, UploadFile,
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from starlette.formparsers import MultiPartParser, MultiPartException, parse_options_header
 from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 
+from open_terminal.dependencies import get_filesystem, verify_api_key
 from open_terminal.env import API_KEY, BINARY_FILE_MIME_PREFIXES, CORS_ALLOWED_ORIGINS, ENABLE_NOTEBOOKS, ENABLE_SYSTEM_PROMPT, ENABLE_TERMINAL, EXECUTE_DESCRIPTION, EXECUTE_TIMEOUT, FILE_BROWSER_ROOT, LOG_DIR, MAX_TERMINAL_SESSIONS, MULTI_USER, OPEN_TERMINAL_INFO, PROCESS_LOG_RETENTION, SESSION_CWD_TTL, SYSTEM_PROMPT, TERMINAL_TERM
 from open_terminal.env import sanitized_environ
 from open_terminal.utils.runner import PipeRunner, ProcessRunner, create_runner, read_pty, write_pty, PtyRunner
@@ -48,7 +48,7 @@ MAX_CONTENT_SEARCH_FILE_SIZE = 1 * 1024 * 1024
 log = logging.getLogger(__name__)
 
 if MULTI_USER:
-    from open_terminal.utils.user_isolation import check_environment, resolve_user
+    from open_terminal.utils.user_isolation import check_environment
     check_environment()
 
 if not API_KEY:
@@ -135,34 +135,6 @@ _EXECUTE_DESCRIPTION = (
 )
 if EXECUTE_DESCRIPTION:
     _EXECUTE_DESCRIPTION += "\n\n" + EXECUTE_DESCRIPTION
-
-bearer_scheme = HTTPBearer(auto_error=False)
-
-
-async def verify_api_key(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
-):
-    if not API_KEY:
-        return
-    if not credentials or not hmac.compare_digest(credentials.credentials, API_KEY):
-        raise HTTPException(status_code=401, detail="Invalid API key")
-
-
-def get_filesystem(request: Request) -> UserFS:
-    """Build a :class:`UserFS` scoped to the requesting user.
-
-    When multi-user mode is active and the ``X-User-Id`` header is present,
-    returns a ``UserFS`` that routes all I/O through ``sudo -u``.
-    Otherwise returns a plain ``UserFS`` using stdlib.
-    """
-    if not MULTI_USER:
-        return UserFS()
-    user_id = request.headers.get("x-user-id")
-    if not user_id:
-        return UserFS()
-    username, home = resolve_user(user_id)
-    return UserFS(username=username, home=home)
-
 
 def get_file_browser_root(fs: UserFS) -> dict[str, str] | None:
     configured = FILE_BROWSER_ROOT.strip()
@@ -387,10 +359,10 @@ _EXPIRY_SECONDS = 300  # auto-clean finished processes after 5 min
 # ---------------------------------------------------------------------------
 # Per-session working directory tracking
 # ---------------------------------------------------------------------------
-# Maps session_id → (absolute_cwd_path, last_accessed_timestamp).
+# Maps (user home, session_id) → (absolute_cwd_path, last_accessed_timestamp).
 # Replaces the old os.chdir() approach which was process-global and unsafe
 # with concurrent sessions.
-_session_cwds: dict[str, tuple[str, float]] = {}
+_session_cwds: dict[tuple[str, str], tuple[str, float]] = {}
 
 
 
@@ -405,18 +377,19 @@ def _expire_session_cwds():
 def _get_session_cwd(session_id: str | None, fs: "UserFS") -> str:
     """Return the tracked cwd for *session_id*, or ``fs.home`` as default."""
     _expire_session_cwds()
-    if session_id and session_id in _session_cwds:
-        cwd, _ = _session_cwds[session_id]
-        _session_cwds[session_id] = (cwd, time.time())  # refresh TTL
+    key = (fs.home, session_id)
+    if session_id and key in _session_cwds:
+        cwd, _ = _session_cwds[key]
+        _session_cwds[key] = (cwd, time.time())  # refresh TTL
         return cwd
     return fs.home
 
 
-def _set_session_cwd(session_id: str | None, path: str):
+def _set_session_cwd(session_id: str | None, path: str, fs: "UserFS"):
     """Store a session's cwd.  No-op if *session_id* is ``None``."""
     if session_id:
         _expire_session_cwds()
-        _session_cwds[session_id] = (path, time.time())
+        _session_cwds[(fs.home, session_id)] = (path, time.time())
 
 
 from open_terminal.utils.log import log_process, log_response
@@ -608,9 +581,9 @@ async def set_cwd(
 ):
     session_id = http_request.headers.get("x-session-id")
     target = fs.resolve_path(request.path)
-    if not fs.username and not await fs.isdir(target):
+    if not await fs.isdir(target):
         raise HTTPException(status_code=404, detail="Directory not found")
-    _set_session_cwd(session_id, target)
+    _set_session_cwd(session_id, target, fs)
     return {"cwd": target}
 
 
@@ -1544,8 +1517,7 @@ async def execute(
     session_cwd = _get_session_cwd(session_id, fs) if session_id else None
     cwd = fs.resolve_path(request.cwd, cwd=session_cwd) if request.cwd else (session_cwd or fs.home)
 
-    subprocess_env = sanitized_environ(request.env)
-    runner = await create_runner(request.command, cwd, subprocess_env, run_as_user=fs.username)
+    runner = await create_runner(request.command, cwd, request.env, run_as_user=fs.username)
 
     process_id = time.strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:6]
     log_path = os.path.join(LOG_DIR, "processes", f"{process_id}.jsonl")
@@ -2229,6 +2201,6 @@ if ENABLE_TERMINAL:
 # ---------------------------------------------------------------------------
 
 if ENABLE_NOTEBOOKS:
-    from open_terminal.utils.notebooks import create_notebooks_router
+    from open_terminal.utils import notebooks
 
-    app.include_router(create_notebooks_router(verify_api_key))
+    app.include_router(notebooks.router)
