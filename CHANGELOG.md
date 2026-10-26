@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.14.5] - 2026-10-25
+
+### Added
+
+- `open-terminal run --cftunnel` publishes a temporary Cloudflare HTTPS endpoint with a required configured API key. Reuses installed cloudflared or offers a pinned, checksum-verified download; `--yes` approves unattended downloads. The API and connector shut down together.
+
+### Fixed
+
+- CLI launches using `OPEN_TERMINAL_API_KEY_FILE` no longer leave conflicting API-key environment settings. Explicit `--api-key` overrides environment sources.
+- Malformed REST and terminal WebSocket credentials are rejected without authentication-handler exceptions.
+
 ## [0.14.4] - 2026-10-24
 
 ### Added

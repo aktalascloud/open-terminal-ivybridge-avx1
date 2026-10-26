@@ -2,8 +2,8 @@
 
 When ``OPEN_TERMINAL_MULTI_USER=true``, each distinct ``X-User-Id`` is mapped
 to a dedicated Linux user account.  Commands and file operations then run as
-that OS user via ``sudo -u``, and ``chmod 700`` on the home directory provides
-kernel-enforced isolation between users.
+that OS user via ``sudo -u``. This separates workspaces inside a shared
+container; it is not a security boundary between users.
 """
 
 import hashlib
@@ -89,6 +89,8 @@ def ensure_os_user(username: str) -> str:
     """
     try:
         pw = pwd.getpwnam(username)
+        if pw.pw_uid < 1000 or pw.pw_uid in (os.getuid(), os.geteuid()):
+            raise RuntimeError(f"Refusing to use reserved account {username!r}")
         return pw.pw_dir
     except KeyError:
         pass  # User doesn't exist yet — create below

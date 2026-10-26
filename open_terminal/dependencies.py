@@ -14,12 +14,20 @@ if MULTI_USER:
 bearer_scheme = HTTPBearer(auto_error=False)
 
 
+def matches_api_key(token: object) -> bool:
+    # compare_digest rejects non-ASCII strings; malformed network input is not an error.
+    try:
+        return isinstance(token, str) and hmac.compare_digest(token.encode("utf-8"), API_KEY.encode("utf-8"))
+    except UnicodeEncodeError:
+        return False
+
+
 async def verify_api_key(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
 ):
     if not API_KEY:
         return
-    if not credentials or not hmac.compare_digest(credentials.credentials, API_KEY):
+    if not credentials or not matches_api_key(credentials.credentials):
         raise HTTPException(status_code=401, detail="Invalid API key")
 
 
