@@ -120,7 +120,10 @@ def get_system_prompt() -> str:
         "and search the filesystem. "
         "Prefer verifying the current state before making changes. "
         "When running commands, check the output to confirm success. "
-        "If a command produces no output, that typically means it succeeded."
+        "If a command produces no output, that typically means it succeeded.\n\n"
+        "When delivering created or updated files to the user, call display_file for each deliverable "
+        "before your final response. Do not invent download links or use sandbox: URLs. "
+        "After displaying the files, briefly confirm completion without repeating links."
     )
 
     if OPEN_TERMINAL_INFO:

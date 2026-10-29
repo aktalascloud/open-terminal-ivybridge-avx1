@@ -7,7 +7,7 @@
   "description": "Open Terminal for Windows/Ivy Bridge AVX1: agent/MCP fixes, credential isolation, Russian UI integration / дополненный русский интерфейс в WebUI и Desktop.",
   "repository": "aktalascloud/open-terminal-ivybridge-avx1",
   "channel": "latest",
-  "upstream_commit": "3994f0939b6535d68ff2bd7c082c2a274e133e42",
-  "stable_tag": "v0.14.5",
+  "upstream_commit": "431fc2bccf98fd1e197a0d47a5140f495ba017eb",
+  "stable_tag": "v0.14.6",
   "distribution": "single unified latest"
 }

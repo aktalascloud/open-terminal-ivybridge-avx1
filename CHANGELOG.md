@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.14.6] - 2026-10-29
+
+### Fixed
+
+- Updated the default assistant instructions to present created or edited files through Open WebUI's file viewer before finishing a reply. This addresses replies that showed labels such as "Download PDF" and "Editable Word version" without working download links. Custom assistant instructions must be updated separately to include this guidance.
+
 ## [0.14.5] - 2026-10-25
 
 ### Added
