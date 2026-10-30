@@ -32,6 +32,10 @@ jobs:
             file: Dockerfile.alpine
             suffix: "-alpine"
             short_tag: "alpine"
+          - name: openshift
+            file: Dockerfile.openshift
+            suffix: "-openshift"
+            short_tag: "openshift"
     permissions:
       contents: read
       packages: write
@@ -97,6 +101,9 @@ jobs:
           - name: alpine
             suffix: "-alpine"
             short_tag: "alpine"
+          - name: openshift
+            suffix: "-openshift"
+            short_tag: "openshift"
     permissions:
       contents: read
       packages: write

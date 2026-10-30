@@ -4,10 +4,10 @@
   "upstream": "open-webui/open-terminal",
   "development": "main",
   "runner": "windows-2022",
-  "description": "Open Terminal for Windows/Ivy Bridge AVX1: agent/MCP fixes, credential isolation, Russian UI integration / дополненный русский интерфейс в WebUI и Desktop.",
+  "description": "Open Terminal for Windows/Ivy Bridge AVX1: agent/MCP fixes, credential isolation, Russian UI integration / \u0434\u043e\u043f\u043e\u043b\u043d\u0435\u043d\u043d\u044b\u0439 \u0440\u0443\u0441\u0441\u043a\u0438\u0439 \u0438\u043d\u0442\u0435\u0440\u0444\u0435\u0439\u0441 \u0432 WebUI \u0438 Desktop.",
   "repository": "aktalascloud/open-terminal-ivybridge-avx1",
   "channel": "latest",
-  "upstream_commit": "431fc2bccf98fd1e197a0d47a5140f495ba017eb",
+  "upstream_commit": "93fb121038a8ab50457482f2dc8019573966d9b5",
   "stable_tag": "v0.14.6",
   "distribution": "single unified latest"
 }
