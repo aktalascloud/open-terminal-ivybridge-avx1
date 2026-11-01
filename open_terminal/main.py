@@ -28,11 +28,12 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request, UploadFile,
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
+from starlette.background import BackgroundTask
 from starlette.formparsers import MultiPartParser, MultiPartException, parse_options_header
 from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 
 from open_terminal.dependencies import get_filesystem, matches_api_key, verify_api_key
-from open_terminal.env import API_KEY, BINARY_FILE_MIME_PREFIXES, CORS_ALLOWED_ORIGINS, ENABLE_NOTEBOOKS, ENABLE_SYSTEM_PROMPT, ENABLE_TERMINAL, EXECUTE_DESCRIPTION, EXECUTE_TIMEOUT, FILE_BROWSER_ROOT, LOG_DIR, MAX_TERMINAL_SESSIONS, MULTI_USER, OPEN_TERMINAL_INFO, PROCESS_LOG_RETENTION, SESSION_CWD_TTL, SYSTEM_PROMPT, TERMINAL_TERM
+from open_terminal.env import API_KEY, BINARY_FILE_MIME_PREFIXES, CORS_ALLOWED_ORIGINS, ENABLE_NOTEBOOKS, ENABLE_SYSTEM_PROMPT, ENABLE_TERMINAL, EXECUTE_DESCRIPTION, EXECUTE_TIMEOUT, FILE_BROWSER_ROOT, LOG_DIR, MAX_TERMINAL_SESSIONS, MULTI_USER, OPEN_TERMINAL_INFO, PROCESS_LOG_RETENTION, PROCESS_EXPIRY, PROCESS_UNDELIVERED_EXPIRY, SESSION_CWD_TTL, SYSTEM_PROMPT, TERMINAL_TERM
 from open_terminal.utils.search_preview import bounded_match_content
 from open_terminal.env import sanitized_environ
 from open_terminal.utils.runner import PipeRunner, ProcessRunner, create_runner, read_pty, write_pty, PtyRunner
@@ -350,13 +351,14 @@ class BackgroundProcess:
     log_task: Optional[asyncio.Task] = field(default=None, repr=False)
     input_lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
     finished_at: Optional[float] = field(default=None, repr=False)
+    delivered_at: Optional[float] = field(default=None, repr=False)
     log_path: Optional[str] = field(default=None, repr=False)
     user_id: str = ""
     session_id: str = ""
 
 
 _processes: dict[str, BackgroundProcess] = {}
-_EXPIRY_SECONDS = 300  # auto-clean finished processes after 5 min
+
 
 
 # ---------------------------------------------------------------------------
@@ -400,11 +402,26 @@ from open_terminal.utils.log import log_process, log_response
 
 
 
+async def _process_log_response(process, metadata, offset=0, tail=None):
+    response = await log_response(process.log_path, metadata, offset=offset, tail=tail)
+    if metadata["status"] != "running":
+        cleanup = response.background
+        async def delivered():
+            if process.delivered_at is None:
+                process.delivered_at = time.time()
+            if cleanup:
+                await cleanup()
+        response.background = BackgroundTask(delivered)
+    return response
+
+
 def _cleanup_expired():
     now = time.time()
     finished = [p for p in _processes.values() if p.finished_at is not None]
     for process in finished:
-        if now - process.finished_at > _EXPIRY_SECONDS:
+        start = process.delivered_at if process.delivered_at is not None else process.finished_at
+        expiry = PROCESS_EXPIRY if process.delivered_at is not None else PROCESS_UNDELIVERED_EXPIRY
+        if now - start > expiry:
             _processes.pop(process.id, None)
 
 
@@ -432,7 +449,7 @@ async def _maintenance_loop():
             for sid, session in list(_terminal_sessions.items()):
                 if not _session_is_alive(session):
                     await _cleanup_session(sid)
-        active = {p.log_path for p in _processes.values() if p.finished_at is None}
+        active = {p.log_path for p in _processes.values()}
         try:
             await run_io(_cleanup_log_files, active)
         except OSError as exc:
@@ -1542,7 +1559,7 @@ async def execute(
         except asyncio.TimeoutError:
             pass
 
-    return await log_response(background_process.log_path, {
+    return await _process_log_response(background_process, {
         "id": process_id,
         "command": request.command,
         "cwd": cwd,
@@ -1595,7 +1612,7 @@ async def get_status(
         except asyncio.TimeoutError:
             pass
 
-    return await log_response(background_process.log_path, {
+    return await _process_log_response(background_process, {
         "id": background_process.id,
         "command": background_process.command,
         "status": background_process.status,

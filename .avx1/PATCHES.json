@@ -32,5 +32,11 @@
     "description": "Upstream0.14.7 file-creation dates; pypdf6.21.4 security update. Existing delivery/grep/MCP fixes retained.",
     "urls": [],
     "verification": "Targeted regressions plus exact-source package/privacy/security/startup gates; final CI receipt records actual scope."
+  },
+  {
+    "id": "TERM-015",
+    "description": "PR150 adapted to streamed log responses: keep unread completed results30min, start5min expiry only after HTTP response completion; protect all retained process logs from the existing disk sweep. Existing orphan-log cleanup already covers PR149; configurable keep-alive already exists.",
+    "url": "https://github.com/open-webui/open-terminal/pull/150",
+    "verification": "Actual cleanup/response helper regressions: unread/running/expired records, completed delivery and preserved response cleanup."
   }
 ]

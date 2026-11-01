@@ -79,6 +79,7 @@ def build_python(project, package, manifest):
         run(sys.executable, "-c", launcher, audit_target, script, *arguments)
     if project == "terminal":
         checked_script(ROOT / ".avx1/test_terminal.py")
+        checked_script(ROOT / ".avx1/test_result_delivery.py")
         measurement=WORK/'grep-preview-measurement.json'
         if measurement.exists():manifest['context_guard']=json.loads(measurement.read_text('utf-8'))
     else:

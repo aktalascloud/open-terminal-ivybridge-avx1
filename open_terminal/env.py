@@ -97,6 +97,10 @@ EXECUTE_DESCRIPTION = os.environ.get(
     config.get("execute_description", ""),
 )
 
+# Delivery-aware result retention (PR150); unknown outcomes remain recoverable.
+PROCESS_EXPIRY = float(os.environ.get("OPEN_TERMINAL_PROCESS_EXPIRY", config.get("process_expiry", 300)))
+PROCESS_UNDELIVERED_EXPIRY = float(os.environ.get("OPEN_TERMINAL_PROCESS_UNDELIVERED_EXPIRY", config.get("process_undelivered_expiry", 1800)))
+
 # Maximum size (in bytes) for per-process JSONL log files.
 # Once exceeded, the oldest portion is removed on disk; output capture continues.
 MAX_PROCESS_LOG_SIZE = int(
