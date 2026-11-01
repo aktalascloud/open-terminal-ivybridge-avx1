@@ -1,0 +1,5 @@
+{
+  "scope": "current selected checks; final package and deployment receipts are recorded after CI",
+  "inference_speedup_percent": null,
+  "model_required_for_build": false
+}

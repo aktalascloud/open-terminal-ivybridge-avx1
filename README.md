@@ -1,19 +1,22 @@
-# Open Terminal · Ivy Bridge AVX1
+# Open Terminal AVX1
 
-[English](README.md) · [Русский](README.ru.md) · [Upstream](https://github.com/open-webui/open-terminal) · [Releases](https://github.com/aktalascloud/open-terminal-ivybridge-avx1/releases/latest)
+Unofficial fork with reviewed agent/MCP fixes and extended Russian UI. One latest ZIP + Install.cmd.
 
-Terminal/MCP backend for Windows. Russian UI comes through WebUI/Desktop.
+[Upstream](https://github.com/open-webui/open-terminal) · [Release](https://github.com/aktalascloud/open-terminal-ivybridge-avx1/releases/latest) · [Patches](.avx1/PATCHES.json)
 
-Download the latest ZIP, extract it and run `Install.cmd`.
+## Build
 
-## Changes
+Requires Python3.12+, Git and GitHub CLI for CI. No LLM, model weights or Codex dependency.
 
-- Bounded grep without losing long-line matches: adapted [#144](https://github.com/open-webui/open-terminal/pull/144).
-- Our new preview avoids copying the whole line.
-- Credential isolation, MCP stdio and compatible WebUI dependencies. [Full patch list](.avx1/PATCHES.json).
+```cmd
+Build.cmd status
+Build.cmd build
+```
 
-## Evidence
+`build` verifies the clean published commit and dispatches the pinned workflow. For a prepared local compiler/SDK environment: `Build.cmd local`. Dependencies, flags, tests and license gates are in `.avx1/`; lockfiles and source history are retained. Signing keys stay outside the repository.
 
-On an actual Xeon E5-2697 v2, the new preview reduced authenticated grep API CPU cost by **9.20–13.18%** versus the previous fork release in two independent runs. Preview construction alone used **99.73% less CPU time**. Outputs match in 108 Unicode/EOL cases per run. Fixture: one synthetic 2 MB JSON line. Small-file performance and LLM tokens/s are not inferred. [Samples and method](.avx1/measurements/grep-cpu-20261024.json) · [Reproduce](.avx1/bench_search_cpu.py).
+## Run and verify
 
-Original licenses/notices and source history are preserved. Exact corresponding source is linked from each release. Credentials, logs, models and private filter/bridge code stay outside the public packages.
+Use the single release package. Keep user data separate from source. Settings, endpoints and model selection are runtime configuration, not build requirements. Ivy Bridge: AVX/F16C, O3 and verified LTO, without AVX2/FMA/PGO/fast-math. Android: ARM64 release AOT; source-built and prebuilt libraries are identified in the package manifest.
+
+Current checks and measurements: [.avx1/measurements/latest.json](.avx1/measurements/latest.json). CPU microbenchmarks are not LLM tokens/s. Original licenses and notices apply.

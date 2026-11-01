@@ -26,5 +26,11 @@
     "id": "TERM-005",
     "description": "Avoid copying a whole multi-megabyte line when building a bounded grep preview; preserve exact Unicode/trailing-EOL output. CPU measurements use the real grep API.",
     "source": "owner-authored; measured on Ivy Bridge"
+  },
+  {
+    "id": "TERM-014",
+    "description": "Upstream0.14.7 file-creation dates; pypdf6.21.4 security update. Existing delivery/grep/MCP fixes retained.",
+    "urls": [],
+    "verification": "Targeted regressions plus exact-source package/privacy/security/startup gates; final CI receipt records actual scope."
   }
 ]

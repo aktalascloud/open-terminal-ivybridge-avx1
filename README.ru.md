@@ -1,19 +1,22 @@
-# Open Terminal · Ivy Bridge AVX1
+# Open Terminal AVX1
 
-[English](README.md) · [Русский](README.ru.md) · [Исходный проект](https://github.com/open-webui/open-terminal) · [Релизы](https://github.com/aktalascloud/open-terminal-ivybridge-avx1/releases/latest)
+Неофициальный форк: проверенные исправления для агентов/MCP и дополненный русский интерфейс. Один актуальный ZIP + Install.cmd.
 
-Terminal/MCP backend для Windows. Русский интерфейс доступен через WebUI/Desktop.
+[Upstream](https://github.com/open-webui/open-terminal) · [Release](https://github.com/aktalascloud/open-terminal-ivybridge-avx1/releases/latest) · [Patches](.avx1/PATCHES.json)
 
-Скачайте последний ZIP, распакуйте и запустите `Install.cmd`.
+## Сборка
 
-## Изменения
+Нужны Python3.12+, Git и GitHub CLI для CI. Сборка не зависит от модели, её весов или Codex.
 
-- Компактный grep без потери совпадений в длинных строках: адаптация [#144](https://github.com/open-webui/open-terminal/pull/144).
-- Наш новый preview не копирует всю строку.
-- Изоляция ключей, MCP stdio и совместимые с WebUI зависимости. [Все патчи](.avx1/PATCHES.json).
+```cmd
+Build.cmd status
+Build.cmd build
+```
 
-## Проверки и замеры
+`build` проверяет чистоту опубликованного коммита и запускает закреплённый workflow. При готовом локальном компиляторе/SDK: `Build.cmd local`. Зависимости, флаги, тесты и проверки лицензий — в `.avx1/`. Lockfiles и история исходников сохранены. Ключи подписи в репозиторий не входят.
 
-На настоящем Xeon E5-2697 v2 новый preview снизил CPU-затраты авторизованного grep API на **9,20–13,18%** относительно прошлого релиза форка в двух независимых прогонах. Создание preview отдельно потребовало на **99,73% меньше CPU-времени**. Вывод совпал в 108 проверках Unicode/окончаний строк на прогон. Вход: одна синтетическая строка JSON на 2 МБ. Результат не переносится на малые файлы или tokens/s LLM. [Замеры и методика](.avx1/measurements/grep-cpu-20261024.json) · [Повторить](.avx1/bench_search_cpu.py).
+## Установка и проверки
 
-Оригинальные лицензии, уведомления и история исходников сохранены. Точные исходники указаны в релизе. Ключи, логи, модели LLM и закрытый код фильтра/бриджа в публичные пакеты не входят.
+Используйте единственный пакет релиза. Пользовательские данные храните отдельно от исходников. Адреса серверов и выбор моделей задаются настройками, а не требованиями сборки. Ivy Bridge: AVX/F16C, O3 и проверенный LTO, без AVX2/FMA/PGO/fast-math. Android: ARM64 release AOT; происхождение нативных библиотек указано в манифесте.
+
+Последние проверки и замеры: [.avx1/measurements/latest.json](.avx1/measurements/latest.json). Микрозамеры CPU не означают скорость LLM. Исходные лицензии и уведомления сохранены.
