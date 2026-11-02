@@ -1,7 +1,7 @@
 [project]
 name = "open-terminal"
-version = "0.14.7"
-description = "A remote terminal API."
+version = "0.16.0"
+description = "A remote computer API."
 license = "MIT"
 readme = "README.md"
 authors = [
@@ -17,6 +17,8 @@ dependencies = [
     "python-multipart==0.0.32",
     "aiofiles==25.1.0",
     "pypdf==6.21.4",
+    "watchfiles==1.3.0",
+    "websockets==15.0.1",
     "python-docx>=1.0.0",
     "openpyxl>=3.1.0",
     "python-pptx>=1.0.0",
@@ -25,6 +27,10 @@ dependencies = [
     "nbclient>=0.10.0",
     "ipykernel>=6.0.0",
     "pywinpty>=2.0.0; sys_platform == 'win32'",
+    "pillow==13.0.0",
+    "mss>=10.0.0; sys_platform == 'darwin' or sys_platform == 'win32'",
+    "pyautogui>=0.9.54; sys_platform == 'darwin' or sys_platform == 'win32'",
+    "pyperclip>=1.9.0; sys_platform == 'darwin' or sys_platform == 'win32'",
 ]
 
 [project.optional-dependencies]

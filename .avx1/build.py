@@ -81,6 +81,8 @@ def build_python(project, package, manifest):
         checked_script(ROOT / ".avx1/test_terminal.py")
         checked_script(ROOT / ".avx1/test_cli_cors.py")
         checked_script(ROOT / ".avx1/test_mcp_cli.py")
+        checked_script(ROOT / ".avx1/test_terminal_mainstream.py")
+        checked_script(ROOT / ".avx1/test_search_safety.py")
         checked_script(ROOT / ".avx1/test_result_delivery.py")
         measurement=WORK/'grep-preview-measurement.json'
         if measurement.exists():manifest['context_guard']=json.loads(measurement.read_text('utf-8'))

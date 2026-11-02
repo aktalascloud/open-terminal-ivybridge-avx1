@@ -51,5 +51,21 @@
       "116": "8fa2930a0b868882c04eebed7d1c8c34bc30e8d9"
     },
     "verification": "12 CORS and12 MCP CLI scenarios with synthetic TOML/env/file sources; build recipe runs both regressions. No auth guard or API-key storage changes."
+  },
+  {
+    "id": "TERM-MAINSTREAM-016",
+    "description": "Merge official main6444534: owned browser/Chrome/desktop APIs, bounded frames, fs/port/process WebSockets and Git endpoints. Preserve CORS/MCP CLI fixes, common dependency pins, bounded grep and delivery-aware log retention. Restart a completed shared port scanner for new viewers; use shared constant-time API-key matching for MCP.",
+    "source": "https://github.com/open-webui/open-terminal/commit/6444534c8aa4bd8acf561bf62cd9eef3e29bd24f",
+    "verification": "15 new isolated API/log/port/frame/MCP/CDP cases;12 CORS and12 MCP CLI scenarios;5 existing behavior and3 retention tests. No real browser/screen/input/audio action and no complete hardware or packaged startup proof.",
+    "dependency_scope": "watchfiles1.3.0/websockets15.0.1/Pillow13.0.0 match the tested shared runtime. New host capture dependencies remain upstream constraints, pending fresh package audit/qualification; vendor wheels are not declared locally rebuilt.",
+    "privacy": "Windows Chrome uses a dedicated managed profile and loopback CDP with proxy=None, without inherited OPEN_TERMINAL_* credentials. Browser proxy strips API-key/cookie/x-user request headers.",
+    "license_scope": "Accepted from immutable official Open Terminal MIT source; original copyright and Computer-origin attribution header retained. No Computer binary/service imported."
+  },
+  {
+    "id": "TERM-SEARCH-192",
+    "description": "PR192 adapted: read regular files only, skip pseudo-filesystem roots in rg, stay on the search root filesystem and exclude dev/proc/sys when scanning filesystem root. Explicitly selected mounts remain searchable; existing ACL checks retained.",
+    "url": "https://github.com/open-webui/open-terminal/pull/192",
+    "upstream_head": "726c705dcabe83cb869771e701bb93466f5f31b2",
+    "verification": "6 isolated stat/mount/ACL/rg guard regressions; Linux device files not opened on the Windows host."
   }
 ]

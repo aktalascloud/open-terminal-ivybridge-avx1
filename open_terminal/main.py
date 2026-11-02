@@ -26,21 +26,23 @@ from urllib.parse import quote as url_quote
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.exceptions import RequestValidationError
-from fastapi.middleware.cors import CORSMiddleware
+from open_terminal.browser.router import BrowserCORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from starlette.background import BackgroundTask
 from starlette.formparsers import MultiPartParser, MultiPartException, parse_options_header
 from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 
 from open_terminal.dependencies import get_filesystem, matches_api_key, verify_api_key
-from open_terminal.env import API_KEY, BINARY_FILE_MIME_PREFIXES, CORS_ALLOWED_ORIGINS, ENABLE_NOTEBOOKS, ENABLE_SYSTEM_PROMPT, ENABLE_TERMINAL, EXECUTE_DESCRIPTION, EXECUTE_TIMEOUT, FILE_BROWSER_ROOT, LOG_DIR, MAX_TERMINAL_SESSIONS, MULTI_USER, OPEN_TERMINAL_INFO, PROCESS_LOG_RETENTION, PROCESS_EXPIRY, PROCESS_UNDELIVERED_EXPIRY, SESSION_CWD_TTL, SYSTEM_PROMPT, TERMINAL_TERM
+from open_terminal.env import API_KEY, BINARY_FILE_MIME_PREFIXES, CORS_ALLOWED_ORIGINS, ENABLE_BROWSER, ENABLE_DESKTOP, ENABLE_NOTEBOOKS, ENABLE_SYSTEM_PROMPT, ENABLE_TERMINAL, EXECUTE_DESCRIPTION, EXECUTE_TIMEOUT, FILE_BROWSER_ROOT, LOG_DIR, MAX_TERMINAL_SESSIONS, MULTI_USER, OPEN_TERMINAL_INFO, PROCESS_LOG_RETENTION, PROCESS_EXPIRY, PROCESS_UNDELIVERED_EXPIRY, SESSION_CWD_TTL, SYSTEM_PROMPT, TERMINAL_TERM
 from open_terminal.utils.search_preview import bounded_match_content
 from open_terminal.env import sanitized_environ
 from open_terminal.utils.runner import PipeRunner, ProcessRunner, create_runner, read_pty, write_pty, PtyRunner
 from open_terminal.utils.fs import UserFS, FullFileResponse as FileResponse, TemporaryFileResponse, text_file_response, line_range_offsets
 from open_terminal.utils.limits import (CHUNK_SIZE, NormalizeNullQueryMiddleware, run_io, run_worker)
 from open_terminal.utils.file_compare import CompareRequest, run_comparison
-from open_terminal.utils.search import search_entries, matching_files, ranked_page
+from open_terminal.utils.git import GitRepository
+from open_terminal.utils.events import system_events
+from open_terminal.utils.search import is_regular_file, search_entries, matching_files, ranked_page
 from open_terminal.utils.skills import join_skill_path, list_skill_resources, parse_skill_frontmatter
 
 MATCH_PAGE_SIZE = 100
@@ -202,6 +204,12 @@ async def lifespan(app):
         if ENABLE_NOTEBOOKS:
             from open_terminal.utils.notebooks import shutdown_notebooks
             await shutdown_notebooks()
+        if ENABLE_BROWSER:
+            from open_terminal.browser.router import shutdown as shutdown_browsers
+            await shutdown_browsers()
+        if ENABLE_DESKTOP:
+            from open_terminal.desktop import shutdown as shutdown_desktops
+            await shutdown_desktops()
         global _port_proxy_client
         if _port_proxy_client is not None:
             await _port_proxy_client.aclose()
@@ -211,12 +219,12 @@ async def lifespan(app):
 app = FastAPI(
     lifespan=lifespan,
     title="Open Terminal",
-    description="A remote terminal API.",
+    description="A remote computer API.",
     version=_pkg_version("open-terminal"),
 )
 app.add_middleware(NormalizeNullQueryMiddleware)
 app.add_middleware(
-    CORSMiddleware,
+    BrowserCORSMiddleware,
     allow_origins=[o.strip() for o in CORS_ALLOWED_ORIGINS.split(",")],
     allow_credentials=True,
     allow_methods=["*"],
@@ -355,9 +363,22 @@ class BackgroundProcess:
     log_path: Optional[str] = field(default=None, repr=False)
     user_id: str = ""
     session_id: str = ""
+    changed: asyncio.Event = field(default_factory=asyncio.Event, repr=False)
+
+    def notify_output(self):
+        changed, self.changed = self.changed, asyncio.Event()
+        changed.set()
 
 
 _processes: dict[str, BackgroundProcess] = {}
+_process_list_changed = asyncio.Event()
+
+
+def _notify_process_list():
+    global _process_list_changed
+    changed, _process_list_changed = _process_list_changed, asyncio.Event()
+    changed.set()
+
 
 
 
@@ -397,7 +418,7 @@ def _set_session_cwd(session_id: str | None, path: str, fs: "UserFS"):
         _session_cwds[(fs.home, session_id)] = (path, time.time())
 
 
-from open_terminal.utils.log import log_process, log_response
+from open_terminal.utils.log import LogReader, log_process, log_response
 
 
 
@@ -423,6 +444,7 @@ def _cleanup_expired():
         expiry = PROCESS_EXPIRY if process.delivered_at is not None else PROCESS_UNDELIVERED_EXPIRY
         if now - start > expiry:
             _processes.pop(process.id, None)
+            _notify_process_list()
 
 
 def _cleanup_log_files(active_paths):
@@ -500,6 +522,10 @@ async def get_config():
             "terminal": ENABLE_TERMINAL,
             "notebooks": ENABLE_NOTEBOOKS,
             "system": ENABLE_SYSTEM_PROMPT,
+            "git": shutil.which("git") is not None,
+            "events": True,
+            "browser": ENABLE_BROWSER,
+            "desktop": ENABLE_DESKTOP and desktop_available(),
         },
     }
 
@@ -686,6 +712,148 @@ async def list_files(
         raise HTTPException(status_code=404, detail="Directory not found")
     entries = await fs.listdir(target)
     return {"dir": target, "writable": await fs.is_writable(target), "entries": entries}
+
+
+@app.websocket("/events")
+async def ws_events(ws: WebSocket):
+    payload = await _authenticate_websocket(ws)
+    if payload is None:
+        return
+    request = Request({**ws.scope, "type": "http", "method": "GET"})
+    try:
+        fs = await asyncio.to_thread(get_filesystem, request)
+        session_id = ws.headers.get("x-session-id", payload.get("chat_id", ""))
+        async def ports():
+            previous = None
+            async for snapshot in watch_listening_ports():
+                visible = await _visible_ports(request, snapshot)
+                visible = [{k: v for k, v in port.items() if k != "uid"} for port in visible]
+                if visible != previous:
+                    yield visible
+                    previous = visible
+
+        await system_events(ws, fs, _get_session_cwd(session_id, fs), ports)
+    except HTTPException:
+        await ws.close(code=4003, reason="Filesystem access denied")
+
+
+async def _authenticate_websocket(ws: WebSocket):
+    await ws.accept()
+    try:
+        payload = await asyncio.wait_for(ws.receive_json(), timeout=10)
+        if not isinstance(payload, dict) or payload.get("type") != "auth" or not matches_api_key(payload.get("token")):
+            await ws.close(code=4001, reason="Invalid API key")
+            return
+    except WebSocketDisconnect:
+        return
+    except (TimeoutError, ValueError, KeyError):
+        await ws.close(code=4001, reason="Auth timeout or invalid payload")
+        return
+    if not isinstance(ws.headers.get("x-session-id", payload.get("chat_id", "")), str):
+        await ws.close(code=4000, reason="Invalid session")
+        return
+    return payload
+
+
+@app.get("/git/status", dependencies=[Depends(verify_api_key)], include_in_schema=False)
+async def git_status(http_request: Request, root: str = ".", fs: UserFS = Depends(get_filesystem)):
+    cwd = _get_session_cwd(http_request.headers.get("x-session-id"), fs)
+    return await GitRepository(fs, root, cwd).status()
+
+
+@app.get("/git/diff", dependencies=[Depends(verify_api_key)], include_in_schema=False)
+async def git_diff(http_request: Request, file: str, root: str = ".", staged: bool = False,
+                   untracked: bool = False, ignore_whitespace: bool = False, fs: UserFS = Depends(get_filesystem)):
+    cwd = _get_session_cwd(http_request.headers.get("x-session-id"), fs)
+    return await GitRepository(fs, root, cwd).diff(file, staged, untracked, ignore_whitespace)
+
+
+@app.get("/git/log", dependencies=[Depends(verify_api_key)], include_in_schema=False)
+async def git_history(http_request: Request, root: str = ".", limit: int = 50, offset: int = 0, fs: UserFS = Depends(get_filesystem)):
+    cwd = _get_session_cwd(http_request.headers.get("x-session-id"), fs)
+    return await GitRepository(fs, root, cwd).history(limit, offset)
+
+
+@app.get("/git/show", dependencies=[Depends(verify_api_key)], include_in_schema=False)
+async def git_show(http_request: Request, ref: str, root: str = ".", fs: UserFS = Depends(get_filesystem)):
+    cwd = _get_session_cwd(http_request.headers.get("x-session-id"), fs)
+    return await GitRepository(fs, root, cwd).show(ref)
+
+
+@app.get("/git/branches", dependencies=[Depends(verify_api_key)], include_in_schema=False)
+async def git_branches(http_request: Request, root: str = ".", fs: UserFS = Depends(get_filesystem)):
+    cwd = _get_session_cwd(http_request.headers.get("x-session-id"), fs)
+    return await GitRepository(fs, root, cwd).branches()
+
+
+@app.get("/git/worktrees", dependencies=[Depends(verify_api_key)], include_in_schema=False)
+async def git_worktrees(http_request: Request, root: str = ".", fs: UserFS = Depends(get_filesystem)):
+    cwd = _get_session_cwd(http_request.headers.get("x-session-id"), fs)
+    return await GitRepository(fs, root, cwd).worktrees()
+
+
+@app.get("/git/pr/{view}", dependencies=[Depends(verify_api_key)], include_in_schema=False)
+async def git_pull_requests(http_request: Request, view: str, root: str = ".", number: int = 0,
+                            state: str = "open", fs: UserFS = Depends(get_filesystem)):
+    cwd = _get_session_cwd(http_request.headers.get("x-session-id"), fs)
+    return await GitRepository(fs, root, cwd).pull_requests(view, number, state)
+
+
+class PullRequestAction(BaseModel):
+    root: str = "."
+    number: int = 0
+    title: str = ""
+    body: str = ""
+    base: str = ""
+    head: str = ""
+    draft: bool = False
+    strategy: str = "squash"
+    event: str = "comment"
+
+
+@app.post("/git/pr/{action}", dependencies=[Depends(verify_api_key)], include_in_schema=False)
+async def git_pull_request_action(http_request: Request, action: str, payload: PullRequestAction, fs: UserFS = Depends(get_filesystem)):
+    cwd = _get_session_cwd(http_request.headers.get("x-session-id"), fs)
+    fields = payload.model_dump(exclude={"root", "strategy", "event"})
+    if action == "review":
+        if payload.event not in ("approve", "comment", "request_changes"):
+            raise HTTPException(400, "Invalid review event")
+        action = {"approve": "approve", "comment": "review-comment", "request_changes": "request-changes"}[payload.event]
+    return await GitRepository(fs, payload.root, cwd).pull_request_action(action, method=payload.strategy, **fields)
+
+
+class GitActionRequest(BaseModel):
+    root: str = "."
+    files: list[str] = Field(default_factory=list)
+    message: str = ""
+    branch: str = ""
+    name: str = ""
+    path: str = ""
+    old_name: str = ""
+    new_name: str = ""
+    set_upstream: bool = False
+
+
+@app.api_route("/git/{action}", methods=["POST", "PATCH", "DELETE"], dependencies=[Depends(verify_api_key)], include_in_schema=False)
+async def git_action(http_request: Request, action: str, payload: GitActionRequest, fs: UserFS = Depends(get_filesystem)):
+    cwd = _get_session_cwd(http_request.headers.get("x-session-id"), fs)
+    branch, target = payload.branch, ""
+    if action == "branch":
+        if http_request.method == "DELETE":
+            action, branch = "delete_branch", payload.name
+        elif http_request.method == "PATCH":
+            action, branch, target = "rename_branch", payload.old_name, payload.new_name
+        else:
+            branch = payload.name
+    elif http_request.method != "POST":
+        raise HTTPException(405, "Method not allowed")
+    elif action == "worktrees":
+        action, target = "worktree", payload.path
+    elif action == "push" and payload.set_upstream:
+        action = "publish"
+    if action not in {"stage", "unstage", "discard", "commit", "checkout", "branch", "delete_branch", "rename_branch", "worktree", "fetch", "pull", "push", "publish", "stash", "unstash", "uncommit"}:
+        raise HTTPException(404, "Unknown Git operation")
+    return await GitRepository(fs, payload.root, cwd).action(action, payload.files, payload.message, branch, target)
 
 
 @app.post("/files/compare", dependencies=[Depends(verify_api_key)], include_in_schema=False)
@@ -1144,7 +1312,7 @@ async def match_files(
                 score = (0 if name_lower == query_lower else 1 if name_lower.startswith(query_lower)
                     else 2 if query_lower in name_lower else 3 if query_lower in rel_lower else 4)
                 content_matches = []
-                if entry_type == "file" and not os.path.islink(entry_path):
+                if entry_type == "file" and not os.path.islink(entry_path) and is_regular_file(entry_path):
                     try:
                         size = os.path.getsize(entry_path)
                         eligible = rg_matches(entry_path) if rg_matches is not None else size <= MAX_CONTENT_SEARCH_FILE_SIZE
@@ -1506,6 +1674,95 @@ async def list_processes(http_request: Request):
     ]
 
 
+async def _stream_websocket(ws, send):
+    """Stop delivery on disconnect without stopping the underlying command."""
+    async def receive():
+        while (await ws.receive())["type"] != "websocket.disconnect":
+            pass
+
+    tasks = [asyncio.create_task(send()), asyncio.create_task(receive())]
+    close_code = 1000
+    try:
+        done, _ = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        for task in done:
+            task.result()
+    except WebSocketDisconnect:
+        pass
+    except Exception:
+        close_code = 1011
+        log.exception("Command stream failed")
+    finally:
+        import anyio
+        with anyio.CancelScope(shield=True):
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+        try:
+            await ws.close(code=close_code)
+        except (WebSocketDisconnect, RuntimeError):
+            pass
+
+
+async def _command_socket_request(ws):
+    payload = await _authenticate_websocket(ws)
+    if payload is None:
+        return None
+    headers = list(ws.scope["headers"])
+    if "x-session-id" not in ws.headers:
+        headers.append((b"x-session-id", payload.get("chat_id", "").encode()))
+    return Request({**ws.scope, "type": "http", "method": "GET", "headers": headers})
+
+
+@app.websocket("/execute")
+async def stream_processes(ws: WebSocket):
+    request = await _command_socket_request(ws)
+    if request is None:
+        return
+
+    async def send():
+        previous = None
+        while True:
+            changed = _process_list_changed
+            processes = await list_processes(request)
+            if processes != previous:
+                await ws.send_json(processes)
+                previous = processes
+            await changed.wait()
+
+    await _stream_websocket(ws, send)
+
+
+@app.websocket("/execute/{process_id}/status")
+async def stream_process_output(ws: WebSocket, process_id: str,
+                                offset: int = Query(0, ge=0),
+                                tail: int = Query(1000, ge=1, le=1000)):
+    request = await _command_socket_request(ws)
+    if request is None:
+        return
+    try:
+        process = _get_process(process_id, request)
+    except HTTPException:
+        await ws.close(code=4004, reason="Process not found")
+        return
+
+    async def send():
+        reader = LogReader(process.log_path, offset, tail)
+        while True:
+            changed = process.changed
+            finished = process.finished_at is not None
+            output, next_offset, truncated = await reader.read()
+            await ws.send_json({"id": process.id, "command": process.command,
+                                "status": process.status if finished else "running",
+                                "exit_code": process.exit_code if finished else None,
+                                "output": output, "next_offset": next_offset,
+                                "truncated": truncated})
+            if finished:
+                return
+            await changed.wait()
+
+    await _stream_websocket(ws, send)
+
+
 @app.post(
     "/execute",
     operation_id="run_command",
@@ -1546,8 +1803,9 @@ async def execute(
         user_id=http_request.headers.get("x-user-id", ""),
         session_id=http_request.headers.get("x-session-id", ""),
     )
-    background_process.log_task = asyncio.create_task(log_process(background_process))
+    background_process.log_task = asyncio.create_task(log_process(background_process, on_finish=_notify_process_list))
     _processes[process_id] = background_process
+    _notify_process_list()
 
     if wait is None and EXECUTE_TIMEOUT:
         wait = EXECUTE_TIMEOUT
@@ -1686,11 +1944,12 @@ async def kill_process(
 # Port detection & proxy
 # ---------------------------------------------------------------------------
 
-from open_terminal.utils.port import detect_listening_ports, get_descendant_pids
+from open_terminal.utils.port import detect_listening_ports, get_descendant_pids, watch_listening_ports
 
 
-async def _visible_ports(request: Request) -> list[dict]:
-    all_ports = await run_io(detect_listening_ports)
+async def _visible_ports(request: Request, all_ports=None) -> list[dict]:
+    if all_ports is None:
+        all_ports = await run_io(detect_listening_ports)
 
     try:
         fs = get_filesystem(request)
@@ -2007,10 +2266,19 @@ if ENABLE_TERMINAL:
         )
 
 
+    def _set_terminal_active(session: dict, active: bool):
+        if active and not session.get("active", False):
+            session["last_active"] = time.monotonic_ns()
+        session["active"] = active
+
+
     def _user_terminal(request: Request) -> dict:
-        for session in reversed(_terminal_sessions.values()):
-            if _owns_terminal(session, request) and session["connected"] and _session_is_alive(session):
-                return session
+        sessions = [
+            session for session in reversed(_terminal_sessions.values())
+            if _owns_terminal(session, request) and session["connected"] and _session_is_alive(session)
+        ]
+        if sessions:
+            return max(sessions, key=lambda session: (session.get("active", False), session.get("last_active", 0)))
         raise HTTPException(status_code=404, detail="No connected user shell")
 
 
@@ -2024,7 +2292,8 @@ if ENABLE_TERMINAL:
 
     @app.get("/api/terminals/user/output", operation_id="read_user_terminal", dependencies=[Depends(verify_api_key)])
     async def read_user_terminal(request: Request):
-        """Read recent output from the user's connected shell. Inspect before sending input:
+        """Read recent output from the user's active shell, or last-used shell when none is visible.
+        Inspect before sending input:
         a foreground program may already be running. Does not create a shell."""
         session = _user_terminal(request)
         return {"output": bytes(session["output"]).decode(errors="replace")}
@@ -2032,7 +2301,8 @@ if ENABLE_TERMINAL:
 
     @app.post("/api/terminals/user/input", operation_id="send_user_terminal_input", dependencies=[Depends(verify_api_key)])
     async def send_user_terminal_input(request: Request, body: InputRequest):
-        """Send literal text to the user's connected shell or its foreground program.
+        """Send literal text to the user's active shell, or last-used shell when none is visible.
+        Input goes to that shell or its foreground program.
         Include actual newlines to submit input. Read the shell first. Sending input
         does not wait for command completion and does not create a shell."""
         session = _user_terminal(request)
@@ -2105,6 +2375,17 @@ if ENABLE_TERMINAL:
         To resize, send a **text** JSON frame::
 
             {"type": "resize", "cols": 120, "rows": 40}
+
+        Report tab visibility so user-shell tools select the active or last-used shell::
+
+            {"type": "activity", "active": true}
+
+        Attach a shell opened before the chat existed, without restarting it::
+
+            {"type": "chat", "chat_id": "<new_chat_id>"}
+
+        The server replies with the same type and chat_id, or an error. A shell
+        already assigned to a different chat cannot be reassigned.
         """
         session = _terminal_sessions.get(session_id)
         if session is None:
@@ -2116,17 +2397,8 @@ if ENABLE_TERMINAL:
             await ws.close(code=4004, reason="Session has ended")
             return
 
-        await ws.accept()
-
-        # First-message authentication
-        try:
-            msg = await asyncio.wait_for(ws.receive_text(), timeout=10.0)
-            payload = json.loads(msg)
-            if not isinstance(payload, dict) or payload.get("type") != "auth" or (API_KEY and not matches_api_key(payload.get("token"))):
-                await ws.close(code=4001, reason="Invalid API key")
-                return
-        except (asyncio.TimeoutError, ValueError, AttributeError, KeyError, WebSocketDisconnect):
-            await ws.close(code=4001, reason="Auth timeout or invalid payload")
+        payload = await _authenticate_websocket(ws)
+        if payload is None:
             return
         if (
             session["user_id"] != ws.headers.get("x-user-id", "")
@@ -2198,6 +2470,18 @@ if ENABLE_TERMINAL:
                             cols = payload.get("cols", 80)
                             rows = payload.get("rows", 24)
                             _do_resize(rows, cols)
+                        elif payload.get("type") == "activity" and isinstance(payload.get("active"), bool):
+                            _set_terminal_active(session, payload["active"])
+                        elif payload.get("type") == "chat":
+                            chat_id = payload.get("chat_id")
+                            if not isinstance(chat_id, str) or not 1 <= len(chat_id) <= 128:
+                                await ws.send_json({"type": "chat", "error": "Invalid chat ID"})
+                            elif session["chat_id"] and session["chat_id"] != chat_id:
+                                await ws.send_json({"type": "chat", "error": "Terminal already belongs to another chat"})
+                            else:
+                                # The socket already authenticated this shell's owner. Keep the PTY alive.
+                                session["chat_id"] = chat_id
+                                await ws.send_json({"type": "chat", "chat_id": chat_id})
                     except (json.JSONDecodeError, KeyError):
                         pass
         tasks = (asyncio.create_task(_pty_reader()), asyncio.create_task(_ws_reader()))
@@ -2224,3 +2508,12 @@ if ENABLE_NOTEBOOKS:
     from open_terminal.utils import notebooks
 
     app.include_router(notebooks.router)
+
+# Browser tabs share the terminal's authenticated user and chat context.
+if ENABLE_BROWSER:
+    from open_terminal.browser.router import router as browser_router
+    app.include_router(browser_router)
+
+if ENABLE_DESKTOP:
+    from open_terminal.desktop import router as desktop_router, available as desktop_available
+    app.include_router(desktop_router, include_in_schema=desktop_available())

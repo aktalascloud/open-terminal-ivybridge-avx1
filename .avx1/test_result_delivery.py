@@ -7,10 +7,10 @@ from unittest.mock import AsyncMock
 from starlette.background import BackgroundTask
 
 scope={'time':NS(time=lambda:1000),'PROCESS_EXPIRY':300,'PROCESS_UNDELIVERED_EXPIRY':1800,
-       'BackgroundTask':BackgroundTask,'_processes':{}}
+       'BackgroundTask':BackgroundTask,'_processes':{},'asyncio':asyncio,'_process_list_changed':asyncio.Event()}
 tree=ast.parse((Path(__file__).resolve().parents[1]/'open_terminal/main.py').read_text('utf-8'))
-nodes=[n for n in tree.body if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef)) and n.name in {'_cleanup_expired','_process_log_response'}]
-assert len(nodes)==2
+nodes=[n for n in tree.body if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef)) and n.name in {'_cleanup_expired','_process_log_response','_notify_process_list'}]
+assert len(nodes)==3
 exec(compile(ast.Module(body=nodes,type_ignores=[]),'actual-result-retention','exec'),scope)
 
 class ResultDelivery(unittest.IsolatedAsyncioTestCase):

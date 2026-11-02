@@ -4,6 +4,102 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.16.0] - 2026-11-02
+
+### Added
+
+- You can now hear videos, music, and other app sounds from the Linux Desktop tab. Audio is compressed to keep data use low, and the default Docker image includes the required sound tools. Requires an updated Open WebUI. Sound sharing is not yet available for native Mac or Windows desktops.
+
+### Changed
+
+- Shortened the Browser and Desktop assistant instructions to favor completing known steps together, such as typing and pressing Enter, and checking the result before deciding what to do next.
+
+### Fixed
+
+- Fixed assistants missing a terminal opened before the first chat message. The existing terminal now joins the chat when you send that message, keeping its running programs, output, and settings without restarting the shell. Requires an updated Open WebUI.
+
+## [0.15.5] - 2026-11-02
+
+### Changed
+
+- Docker images now default to `OPEN_TERMINAL_BROWSER_NO_SANDBOX=true` so Chromium can start under Docker's default security restrictions. Chromium's sandbox remains enabled by default outside Docker. Container isolation is unchanged, but Chromium's protection for files and processes inside the container is disabled. Deployments that support Chromium's sandbox can restore it with `OPEN_TERMINAL_BROWSER_NO_SANDBOX=false`.
+
+## [0.15.4] - 2026-11-02
+
+### Changed
+
+- Desktop and Browser now require an actions list for every request, even for a single step. Their tool instructions tell assistants to combine steps such as typing a command and pressing Enter in one call, with one result after the last step. Clients using the old single-action format must update, and cached tool definitions must be refreshed.
+
+## [0.15.3] - 2026-11-02
+
+### Added
+
+- Assistants can now click a desktop field, enter text, and press Enter in one sequence, receiving a screenshot after the last step instead of after each action.
+- Assistants can now fill several fields in the same Browser tab in one sequence, receiving the updated page contents after the last step. Connected apps must support sending actions together to use these Browser and Desktop improvements.
+- Browser and Desktop sequences stop when a step fails and report how many earlier steps completed. Completed steps are not undone, and assistants can still perform one action at a time.
+
+## [0.15.2] - 2026-11-02
+
+### Added
+
+- Added `OPEN_TERMINAL_BROWSER_NO_SANDBOX=true` for deployments where Chromium cannot start with its sandbox enabled. The same setting applies to Browser tabs and Chromium opened from the Linux Desktop in the Docker image. Restart or redeploy Open Terminal after changing it. This setting turns off Chromium's built-in sandbox protection.
+
+### Fixed
+
+- Chrome startup failures on Linux and Mac now show the actual error, such as a locked browser profile or an unavailable sandbox, instead of the generic message asking you to check the installation, user, and sandbox support. The error is also saved in the server logs.
+
+### Security
+
+- Chromium's sandbox now stays enabled by default in Docker. Previously, Open Terminal automatically disabled it when it detected Docker. Existing deployments that cannot run sandboxed Chromium must now explicitly set `OPEN_TERMINAL_BROWSER_NO_SANDBOX=true` to keep launching the browser.
+
+## [0.15.1] - 2026-11-02
+
+### Added
+
+- The Desktop tab can now show and control your Mac or Windows computer when Open Terminal runs directly on it. You and the assistant can use the mouse, type, paste text, and interact with your open applications. It shares the logged-in user's primary screen across workspaces. On Mac, grant Screen Recording and Accessibility permissions to the app running Open Terminal. Requires an updated Open WebUI.
+- Chrome mode in the Browser tab now works on Windows, with automatic detection of installed Chrome, Edge, and Chromium browsers.
+- Browser and Desktop can now be turned off separately with `OPEN_TERMINAL_ENABLE_BROWSER=false` and `OPEN_TERMINAL_ENABLE_DESKTOP=false`. Both remain on by default. Restart Open Terminal after changing either setting.
+
+### Changed
+
+- Browser views on Mac, Windows, and Linux installations without the desktop packages now use less data by skipping unchanged parts of the page and dropping outdated screen updates. Requires an updated Open WebUI.
+
+### Fixed
+
+- Assistants now have controls for your open Browser tabs, addressing requests that previously sent them to Desktop instead. They can see the page, click, scroll, type, and navigate in the existing tab with its current login. They use the selected browser tab, or the last-used tab when the pane is hidden. The tab must be in Chrome mode. Requires an updated Open WebUI.
+- Fixed browser lag after rapid mouse movement and scrolling on Mac, Windows, and Linux installations without the desktop packages. These actions no longer build up a queue that delays typing or navigation.
+
+## [0.15.0] - 2026-11-02
+
+### Added
+
+- Added support for Open WebUI's Browser tab to open websites and apps running inside Open Terminal. Choose Chrome for a full browser or Proxy for a lightweight page preview, with back, forward, reload, and page titles. Requires an updated Open WebUI.
+- Chrome browser tabs support typing, clicking, scrolling, pasting, and mobile page previews. Switching tabs keeps the other pages open. Each user's saved browser profile is reused across tabs and restarts, with automatic recovery from locks left by an interrupted browser. Chrome mode requires Chrome or Chromium on Linux or macOS; Chromium is now included in the default Docker image.
+- Local web app previews now support automatic page updates after you edit their files, along with loading their styles, images, and scripts through Open Terminal. This works with both direct terminal connections and connections through Open WebUI.
+- Added a Desktop tab for opening a Linux desktop in the terminal workspace. You can use graphical apps, including LibreOffice, and reopen the tab without closing running applications. The desktop and its required tools are included in the default Docker image. Requires an updated Open WebUI.
+- Assistants can see screenshots of that same desktop and click, drag, scroll, type text, and press keyboard shortcuts. You and the assistant work with the same open applications and workspace files.
+- Connected apps can now receive file and Git changes as they happen, including edits made from a terminal or another app. They can also update the list of available local web apps when a server starts or stops.
+- Connected apps can show background command output as it arrives and update the command list when commands start or finish. Closing the output viewer leaves the command running.
+- Added support for opening a repository's website from Open WebUI's Git panel and hiding local branch rename and delete actions for remote branches. Requires an updated Open WebUI.
+
+### Fixed
+
+- Added Chinese, Japanese, and Korean fonts to the default Docker image to address blank characters when previewing PDF and Word documents.
+- Git lookup failures now report the error instead of making an existing repository appear to be an ordinary folder.
+- Background commands now publish buffered output even when they stop producing text, and report completion only after their final output has been saved.
+
+## [0.14.8] - 2026-11-01
+
+### Added
+
+- Added support for Open WebUI's Git panel when browsing a Git repository, including its subfolders. The panel can show the current branch, changed files, added and removed lines, and commit history. Requires an updated Open WebUI.
+- From the Git panel, you can select files to commit, review or discard edits, undo the last commit while keeping your files, switch or manage branches, and create separate working folders for other branches. You can also set changes aside and restore them later, download remote changes, and upload your commits.
+- Added GitHub pull request controls for viewing changes, comments, reviews, and checks; creating and editing pull requests; leaving comments and reviews; and merging, closing, or reopening them. These controls require GitHub CLI to be installed and signed in on the machine running Open Terminal.
+
+### Fixed
+
+- When several terminal tabs are open in the same chat, the assistant now reads output and sends input to the active terminal. When no terminal is visible, it uses the last-used terminal that is still connected. Previously, it always used the newest terminal, even after you switched to another tab. Requires an updated Open WebUI.
+
 ## [0.14.7] - 2026-10-31
 
 ### Added
