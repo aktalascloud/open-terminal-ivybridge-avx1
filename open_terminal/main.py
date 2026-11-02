@@ -34,7 +34,7 @@ from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 
 from open_terminal.dependencies import get_filesystem, matches_api_key, verify_api_key
 from open_terminal.env import API_KEY, BINARY_FILE_MIME_PREFIXES, CORS_ALLOWED_ORIGINS, ENABLE_BROWSER, ENABLE_DESKTOP, ENABLE_NOTEBOOKS, ENABLE_SYSTEM_PROMPT, ENABLE_TERMINAL, EXECUTE_DESCRIPTION, EXECUTE_TIMEOUT, FILE_BROWSER_ROOT, LOG_DIR, MAX_TERMINAL_SESSIONS, MULTI_USER, OPEN_TERMINAL_INFO, PROCESS_LOG_RETENTION, PROCESS_EXPIRY, PROCESS_UNDELIVERED_EXPIRY, SESSION_CWD_TTL, SYSTEM_PROMPT, TERMINAL_TERM
-from open_terminal.utils.search_preview import bounded_match_content
+from open_terminal.utils.search_preview import MAX_MATCH_CONTENT, bounded_match_content
 from open_terminal.env import sanitized_environ
 from open_terminal.utils.runner import PipeRunner, ProcessRunner, create_runner, read_pty, write_pty, PtyRunner
 from open_terminal.utils.fs import UserFS, FullFileResponse as FileResponse, TemporaryFileResponse, text_file_response, line_range_offsets
@@ -1258,7 +1258,7 @@ async def grep_search(
     "/files/matches",
     operation_id="match_files",
     summary="Search files by name and contents",
-    description="Search files and directories by ranked name, path, and content matches.",
+    description="Search files and directories by ranked name, path, and content matches. Content matches use bounded previews with original UTF-16 columns and excerpt_truncated for long lines. Files above 1 MiB are not content-searched; filename matches remain available.",
     dependencies=[Depends(verify_api_key)],
     responses={
         400: {"description": "Blank query."},
@@ -1292,6 +1292,8 @@ async def match_files(
 
     def _matches_sync():
         query_lower = query.lower()
+        # Case folding can change length; positions must refer to original text.
+        query_pattern = re.compile(re.escape(query), re.IGNORECASE)
 
         def content_lines(path):
             with open(path, encoding="utf-8", errors="replace", newline="\n" if rg_matches is not None else None) as source:
@@ -1315,14 +1317,19 @@ async def match_files(
                 if entry_type == "file" and not os.path.islink(entry_path) and is_regular_file(entry_path):
                     try:
                         size = os.path.getsize(entry_path)
-                        eligible = rg_matches(entry_path) if rg_matches is not None else size <= MAX_CONTENT_SEARCH_FILE_SIZE
+                        eligible = size <= MAX_CONTENT_SEARCH_FILE_SIZE and (rg_matches is None or rg_matches(entry_path))
                         if eligible:
                             with open(entry_path, "rb") as source:
                                 binary = rg_matches is None and b"\0" in source.read(8192)
                             for number, text in (() if binary else content_lines(entry_path)):
-                                index = text.lower().find(query_lower)
-                                if index >= 0:
-                                    content_matches.append({"line": number, "column": len(text[:index].encode("utf-16-le")) // 2 + 1, "text": text.rstrip("\r\n")})
+                                found = query_pattern.search(text)
+                                if found:
+                                    index = found.start()
+                                    match = {"line": number, "column": len(text[:index].encode("utf-16-le")) // 2 + 1,
+                                             "text": bounded_match_content(text, index)}
+                                    if len(text.rstrip("\r\n")) > MAX_MATCH_CONTENT:
+                                        match["excerpt_truncated"] = True
+                                    content_matches.append(match)
                                     if len(content_matches) >= MAX_CONTENT_MATCHES_PER_FILE:
                                         break
                     except (OSError, UnicodeError):

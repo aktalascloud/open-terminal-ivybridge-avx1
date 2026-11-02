@@ -67,5 +67,13 @@
     "url": "https://github.com/open-webui/open-terminal/pull/192",
     "upstream_head": "726c705dcabe83cb869771e701bb93466f5f31b2",
     "verification": "6 isolated stat/mount/ACL/rg guard regressions; Linux device files not opened on the Windows host."
+  },
+  {
+    "id": "TERM-SEARCH-178",
+    "description": "Select independent PR178 fixes: original-text case-insensitive matching preserves Unicode/UTF16 columns; enforce the existing1MiB content-search cap with or without ripgrep. Reuse the existing bounded match preview for match_files, retaining discoverability, original column and an explicit excerpt_truncated flag.",
+    "url": "https://github.com/open-webui/open-terminal/pull/178",
+    "upstream_head": "57836d2af15f1109a976033b43fdaf64458dd562",
+    "verification": "4 actual HTTP-route tests cover Unicode/UTF16 on both fake-RG and fallback paths, size gating and long-line preview. Immutable PR review has6 independent repros in maintenance. No real RG/capture/vendor request claim.",
+    "not_imported": "Broad response-byte budgets: first oversized item/log record is retained above the configured budget, escaped display paths and post-fit cursor metadata can overrun the cap. Existing streaming complete-file/log behavior remains; no claim of globally bounded model-facing output. Issue177 follow-up remains open."
   }
 ]

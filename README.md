@@ -21,6 +21,8 @@ Build.cmd build
 
 Mainstream 0.16 adds owned browser sessions, filesystem/port/process events and desktop APIs. Capture and input start only on an authenticated API/tool request; native Windows/macOS use the signed-in desktop shared across workspaces. Windows CDP stays on loopback without a network proxy. Search does not open device/FIFO/socket files or cross mounts; an explicitly selected mount remains searchable.
 
+Content-match previews retain original UTF-16 columns; the 1 MiB content-search cap also applies with ripgrep. Oversized files can still match by name. This is not a global response-byte budget.
+
 Proxy mode rewrites page content; use managed Chrome for sign-ins and sites that need browser origin isolation.
 
 `run` honors CORS from CLI, environment and TOML in that order. `mcp --api-key` explicitly overrides the existing environment/secret-file/config sources; stdio receives no network arguments.
