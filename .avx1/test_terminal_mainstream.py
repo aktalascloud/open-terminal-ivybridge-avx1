@@ -53,6 +53,14 @@ class HttpAndSocket(unittest.TestCase):
     def tearDown(self):
         self.client.close()
 
+    def test_authenticated_health_requires_key_without_exposing_state_or_tools(self):
+        self.assertEqual(self.client.get('/api/health').status_code, 401)
+        self.assertEqual(self.client.get('/api/health', headers={'Authorization': 'Bearer wrong'}).status_code, 401)
+        response = self.client.get('/api/health', headers=AUTH)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {'status': 'ok'})
+        self.assertNotIn('/api/health', self.client.get('/openapi.json').json()['paths'])
+
     def test_private_browser_creation_requires_key(self):
         before = set(browser.sessions)
         response = self.client.post('/browser/sessions', json={'url': 'https://public.example'})

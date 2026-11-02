@@ -75,5 +75,10 @@
     "upstream_head": "57836d2af15f1109a976033b43fdaf64458dd562",
     "verification": "4 actual HTTP-route tests cover Unicode/UTF16 on both fake-RG and fallback paths, size gating and long-line preview. Immutable PR review has6 independent repros in maintenance. No real RG/capture/vendor request claim.",
     "not_imported": "Broad response-byte budgets: first oversized item/log record is retained above the configured budget, escaped display paths and post-fit cursor metadata can overrun the cap. Existing streaming complete-file/log behavior remains; no claim of globally bounded model-facing output. Issue177 follow-up remains open."
+  },
+  {
+    "id": "TERM-AUTH-HEALTH",
+    "description": "Authenticated side-effect-free /api/health for independently managed clients. Retain the public /health contract; exclude the new route from model-facing OpenAPI tools. No process/filesystem/session lookup or cleanup in the probe.",
+    "verification": "Focused real TestClient auth/401/status/OpenAPI check; required by the corresponding Desktop external-Terminal adapter."
   }
 ]

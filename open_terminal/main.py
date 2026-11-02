@@ -506,6 +506,12 @@ async def health():
     return {"status": "ok"}
 
 
+@app.get("/api/health", dependencies=[Depends(verify_api_key)], include_in_schema=False)
+async def authenticated_health():
+    """Side-effect-free credential check for independently managed clients."""
+    return {"status": "ok"}
+
+
 # ---------------------------------------------------------------------------
 # Config (capability discovery)
 # ---------------------------------------------------------------------------
