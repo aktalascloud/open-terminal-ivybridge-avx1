@@ -80,5 +80,10 @@
     "id": "TERM-AUTH-HEALTH",
     "description": "Authenticated side-effect-free /api/health for independently managed clients. Retain the public /health contract; exclude the new route from model-facing OpenAPI tools. No process/filesystem/session lookup or cleanup in the probe.",
     "verification": "Focused real TestClient auth/401/status/OpenAPI check; required by the corresponding Desktop external-Terminal adapter."
+  },
+  {
+    "id": "TERM-GIT-IDENTITY",
+    "description": "Git/gh launched as another OS user cannot inherit the server GitHub token, credential directories or SSH/GPG agents. Preserve the ordinary single-user signed-in CLI and application environment. Resolve executables before entering a repository cwd, and run untracked-file counting through an isolated stdlib-only worker instead of importing from repository/PYTHONPATH. Existing realpath/actor ACL and literal pathspec guards retained.",
+    "verification": "6 synthetic environment/process/path contracts including a real isolated stdlib worker against hostile local module names; no GitHub request, login or real actor switch.5 additional mocked browser proxy contracts cover header/cookie isolation, capabilities, redirects and bounded resource cleanup."
   }
 ]

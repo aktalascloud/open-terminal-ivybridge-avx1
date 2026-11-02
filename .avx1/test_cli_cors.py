@@ -14,6 +14,33 @@ from open_terminal import cli, config
 
 
 class CorsPrecedence(unittest.TestCase):
+    def test_run_resolves_key_file_without_conflicting_sources_or_printing_its_key(self):
+        work = source / '.avx1-work'
+        work.mkdir(exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=work, prefix='key-file-contract-') as directory:
+            root = Path(directory).resolve()
+            self.assertTrue(root.is_relative_to(work.resolve()))
+            secret = root / 'api-key'
+            secret.write_text('synthetic-file-key\n', encoding='utf-8')
+            values = {key: value for key, value in os.environ.items() if not key.upper().startswith('OPEN_TERMINAL_')}
+            values.update(OPEN_TERMINAL_API_KEY_FILE=str(secret), XDG_CONFIG_HOME=str(root / 'xdg'))
+            fake_env = types.ModuleType('open_terminal.env')
+            fake_env.UVICORN_LOOP = 'auto'
+            fake_env.UVICORN_TIMEOUT_KEEP_ALIVE = None
+            received = []
+            with patch.dict(os.environ, values, clear=True), \
+                 patch.object(config, '_SYSTEM_CONFIG_PATH', root / 'no-system-config'), \
+                 patch.dict(sys.modules, {'open_terminal.env': fake_env}), \
+                 patch.object(cli.uvicorn, 'run', side_effect=lambda *args, **kwargs: received.append(
+                     (os.environ.get('OPEN_TERMINAL_API_KEY'), 'OPEN_TERMINAL_API_KEY_FILE' in os.environ))):
+                try:
+                    result = CliRunner().invoke(cli.main, ['run', '--host', '127.0.0.1', '--port', '0'])
+                    self.assertEqual(result.exit_code, 0, result.exception)
+                    self.assertEqual(received, [('synthetic-file-key', False)])
+                    self.assertNotIn('synthetic-file-key', result.output)
+                finally:
+                    config._config = {}
+
     def invoke(self, *, system=None, user=None, environment=None, arguments=()):
         with tempfile.TemporaryDirectory(prefix='terminal-cors-review-') as directory:
             root = Path(directory)

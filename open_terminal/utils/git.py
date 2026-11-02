@@ -5,10 +5,29 @@ import os
 import signal
 import json
 import sys
+import shutil
 
 from fastapi import HTTPException
 
 from open_terminal.env import sanitized_environ
+
+
+def git_environment(fs):
+    env = {key: value for key, value in sanitized_environ().items() if not key.upper().startswith("GIT_")}
+    if fs.username:
+        # A different OS user must use that user's GitHub/SSH/GPG identity,
+        # never the server's inherited credentials or agent sockets.
+        private = {"GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN",
+                   "GH_CONFIG_DIR", "SSH_AUTH_SOCK", "SSH_AGENT_PID", "GNUPGHOME", "GPG_AGENT_INFO",
+                   "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_DATA_HOME", "XDG_RUNTIME_DIR"}
+        env = {key: value for key, value in env.items() if key.upper() not in private}
+        env.update(XDG_CONFIG_HOME=os.path.join(fs.home, ".config"),
+                   XDG_CACHE_HOME=os.path.join(fs.home, ".cache"),
+                   XDG_DATA_HOME=os.path.join(fs.home, ".local", "share"),
+                   GH_CONFIG_DIR=os.path.join(fs.home, ".config", "gh"),
+                   GNUPGHOME=os.path.join(fs.home, ".gnupg"))
+    env.update(HOME=fs.home, GIT_TERMINAL_PROMPT="0", GIT_OPTIONAL_LOCKS="0", GH_PROMPT_DISABLED="1", LC_ALL="C")
+    return env
 
 
 class GitRepository:
@@ -25,13 +44,21 @@ class GitRepository:
         return os.path.realpath(path)
 
     async def run(self, *args, check=True, program="git", input_data=None):
-        env = {key: value for key, value in sanitized_environ().items() if not key.startswith("GIT_")}
-        env.update(HOME=self.fs.home, GIT_TERMINAL_PROMPT="0", GIT_OPTIONAL_LOCKS="0", GH_PROMPT_DISABLED="1", LC_ALL="C")
+        env = git_environment(self.fs)
         command = ["git", "-c", "core.quotePath=false", *args]
         if program == "gh":
             command = ["gh", *args]
         elif program == "line-stats":
-            command = [sys.executable, "-m", "open_terminal.utils.git"]
+            # Do not import an attacker-controlled open_terminal package from
+            # the repository being inspected or from inherited PYTHONPATH.
+            command = [sys.executable, "-I", os.path.join(os.path.dirname(os.path.abspath(__file__)), "git_line_stats.py")]
+        if program != "line-stats":
+            executable = shutil.which(command[0])
+            if not executable:
+                raise HTTPException(404, f"{program} is unavailable")
+            # Resolve before changing cwd so a repository-local git.exe/gh.exe
+            # cannot shadow the trusted executable on Windows.
+            command[0] = os.path.abspath(executable)
         options = {}
         if self.fs.username:
             if hasattr(os, "getuid") and os.getuid() == 0:
@@ -373,23 +400,5 @@ class GitRepository:
 
 
 if __name__ == "__main__":
-    # Count untracked files in one bounded worker under the terminal user's identity.
-    counts = {}
-    for path in json.load(sys.stdin):
-        try:
-            if os.path.islink(path):
-                data = os.readlink(path).encode()
-                counts[path] = data.count(b"\n") + int(bool(data) and not data.endswith(b"\n"))
-                continue
-            count, last, binary = 0, b"", False
-            with open(path, "rb") as source:
-                while chunk := source.read(65536):
-                    if b"\0" in chunk:
-                        binary = True
-                        break
-                    count += chunk.count(b"\n")
-                    last = chunk[-1:]
-            counts[path] = None if binary else count + int(bool(last) and last != b"\n")
-        except OSError:
-            counts[path] = None
-    json.dump(counts, sys.stdout)
+    from open_terminal.utils.git_line_stats import main
+    main()
