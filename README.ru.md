@@ -6,7 +6,7 @@
 
 [Upstream](https://github.com/open-webui/open-terminal) · [Release](https://github.com/aktalascloud/open-terminal-ivybridge-avx1/releases/latest) · [Patches](.avx1/PATCHES.json)
 
-Official0.16.1 отключает рекурсивное наблюдение вне Git, сохраняя наблюдение Git и метаданных рабочих деревьев. Защищённый health и независимый запуск сервиса сохранены.
+Official 0.16.1 отключает рекурсивное наблюдение вне Git, сохраняя наблюдение Git и метаданных рабочих деревьев. Защищённый health и независимый запуск сервиса сохранены.
 
 ## Сборка
 

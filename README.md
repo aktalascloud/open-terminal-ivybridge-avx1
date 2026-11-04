@@ -6,7 +6,7 @@ Unofficial fork with reviewed agent/MCP fixes and extended Russian UI. One lates
 
 [Upstream](https://github.com/open-webui/open-terminal) · [Release](https://github.com/aktalascloud/open-terminal-ivybridge-avx1/releases/latest) · [Patches](.avx1/PATCHES.json)
 
-Official0.16.1 avoids recursive filesystem watches outside Git repositories while retaining Git/worktree metadata watches. Authenticated readiness and independent managed startup are preserved.
+Official 0.16.1 avoids recursive filesystem watches outside Git repositories while retaining Git/worktree metadata watches. Authenticated readiness and independent managed startup are preserved.
 
 ## Build
 
