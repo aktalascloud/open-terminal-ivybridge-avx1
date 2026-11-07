@@ -346,8 +346,29 @@ class GitRepository:
             code, _, _ = await self.run("rev-parse", "--verify", "HEAD", check=False)
             args = ["rm", "--cached", "--", *pathspecs] if code else ["reset", "HEAD", "--", *pathspecs]
         elif action == "discard":
-            # Restore tracked working-tree changes; never delete untracked files.
-            args = ["restore", "--worktree", "--", *pathspecs]
+            status = await self.status()
+            changed = {}
+            for file in status["files"]:
+                # A recreated path can appear as both tracked and untracked.
+                changed[file["path"]] = changed.get(file["path"], False) or file["status"] != "untracked"
+                if file.get("original_path"):
+                    changed[file["original_path"]] = True
+            if any(path not in changed for path in paths):
+                raise HTTPException(400, "Select changed files first")
+            # With --untracked-files=all, untracked directories are nested repositories.
+            if any(not changed[path] and path.endswith("/") for path in paths):
+                raise HTTPException(400, "Cannot discard a nested Git repository; remove it separately")
+            tracked = [spec for path, spec in zip(paths, pathspecs) if changed[path]]
+            untracked = [spec for path, spec in zip(paths, pathspecs) if not changed[path]]
+            if tracked:
+                code, _, _ = await self.run("rev-parse", "--verify", "HEAD", check=False)
+                if code:
+                    await self.run("rm", "-f", "--", *tracked)
+                else:
+                    await self.run("restore", "--source=HEAD", "--staged", "--worktree", "--", *tracked)
+            if untracked:
+                await self.run("clean", "-f", "--", *untracked)
+            return {"message": ""}
         elif action == "commit":
             if not message.strip():
                 raise HTTPException(400, "Enter a commit message")

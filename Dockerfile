@@ -1,6 +1,6 @@
 # Pin to a specific patch version for reproducible builds.
 # To pick up security patches, bump this version and rebuild.
-FROM python:3.12.13
+FROM python:3.12.13 AS base
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     # Core utilities
@@ -66,6 +66,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     xauth xdotool xclip scrot libreoffice libreoffice-gtk3 pulseaudio pulseaudio-utils \
     && rm -rf /var/lib/apt/lists/*
 
+# Xfce's default backdrop, converted to PNG for its image loader.
+COPY assets/home.webp /tmp/wallpaper.webp
+RUN convert /tmp/wallpaper.webp /usr/share/backgrounds/xfce/open-webui.png \
+    && ln -sf open-webui.png /usr/share/backgrounds/xfce/xfce-x.svg \
+    && rm /tmp/wallpaper.webp
+
 # Debian's launcher resets CHROMIUM_FLAGS before reading this directory.
 RUN printf '%s\n' \
     'case "${OPEN_TERMINAL_BROWSER_NO_SANDBOX:-false}" in' \
@@ -95,3 +101,21 @@ COPY entrypoint.sh /app/entrypoint.sh
 
 ENTRYPOINT ["/usr/bin/tini", "--", "/app/entrypoint.sh"]
 CMD ["run"]
+
+# Optional coding agents, installed outside home directories so mounts and
+# multi-user sessions share the binaries while keeping their own credentials.
+FROM base AS agents
+
+USER root
+RUN npm install --global --prefix /usr/local --include=optional \
+    @openai/codex@latest \
+    @anthropic-ai/claude-code@latest \
+    && npm cache clean --force
+
+# Agent updates are delivered by rebuilding the image.
+ENV DISABLE_AUTOUPDATER=1
+USER user
+RUN codex --version && claude --version
+
+# Keep an ordinary `docker build .` equivalent to the existing full image.
+FROM base AS default

@@ -8,6 +8,7 @@ build/
 
 # venv
 .venv/
+tests/node_modules/
 
 # uv
 uv.lock
@@ -29,3 +30,4 @@ Thumbs.db
 *.p12
 *.jks
 android/key.properties
+.local

@@ -79,6 +79,7 @@ def build_python(project, package, manifest):
         run(sys.executable, "-c", launcher, audit_target, script, *arguments)
     if project == "terminal":
         checked_script(ROOT / ".avx1/test_terminal.py")
+        checked_script(ROOT / ".avx1/test_agent_discovery_policy.py")
         checked_script(ROOT / ".avx1/test_cli_cors.py")
         checked_script(ROOT / ".avx1/test_mcp_cli.py")
         checked_script(ROOT / ".avx1/test_terminal_mainstream.py")

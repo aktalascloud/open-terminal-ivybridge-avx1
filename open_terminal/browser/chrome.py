@@ -1,4 +1,4 @@
-"""Chrome tabs using private CDP pipes on POSIX and loopback CDP on Windows."""
+"""Managed Chrome tabs or attachments to an existing Chrome over CDP."""
 
 from __future__ import annotations
 
@@ -6,18 +6,27 @@ import asyncio
 import base64
 import contextlib
 import hashlib
+import io
 from itertools import count
 import json
 import logging
 import os
 from pathlib import Path
+import re
 import shutil
 import sys
+from urllib.parse import urlsplit
 
+import httpx
 import websockets
+from PIL import Image
 
 from fastapi import WebSocket, WebSocketDisconnect
-from open_terminal.env import BROWSER_NO_SANDBOX, sanitized_environ
+from open_terminal.frames import FrameWindow
+from open_terminal.env import (
+    BROWSER_CDP_URL, BROWSER_MODE, BROWSER_NO_SANDBOX, BROWSER_USER_DATA_DIR,
+    sanitized_environ,
+)
 from .rewrite import target_url
 
 log = logging.getLogger(__name__)
@@ -54,6 +63,42 @@ def find_browser():
         "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
     ]
     return next((p for p in candidates if p and Path(p).is_file()), None)
+
+
+async def personal_endpoint():
+    if BROWSER_CDP_URL:
+        endpoint = BROWSER_CDP_URL.strip()
+        parsed = urlsplit(endpoint)
+        if parsed.scheme in ("http", "https") and parsed.hostname:
+            async with httpx.AsyncClient(timeout=10, trust_env=False) as client:
+                response = await client.get(endpoint.rstrip("/") + "/json/version")
+                response.raise_for_status()
+                endpoint = response.json().get("webSocketDebuggerUrl", "")
+            parsed = urlsplit(endpoint)
+        if parsed.scheme not in ("ws", "wss") or not parsed.hostname:
+            raise ValueError("Chrome CDP URL must be an HTTP address or a WebSocket endpoint")
+        return endpoint
+
+    if BROWSER_USER_DATA_DIR:
+        directory = Path(BROWSER_USER_DATA_DIR).expanduser()
+    elif sys.platform == "darwin":
+        directory = Path.home() / "Library/Application Support/Google/Chrome"
+    elif os.name == "nt":
+        directory = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData/Local")) / "Google/Chrome/User Data"
+    else:
+        directory = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "google-chrome"
+    path = directory / "DevToolsActivePort"
+    try:
+        lines = (await asyncio.to_thread(path.read_text, encoding="utf-8")).splitlines()
+        port = int(lines[0])
+        if not 0 < port < 65536 or not re.fullmatch(r"/devtools/browser(?:/[\w-]+)?", lines[1]):
+            raise ValueError("Invalid debugging endpoint")
+    except (OSError, ValueError, IndexError) as exc:
+        raise RuntimeError(
+            f"Cannot discover Chrome from {path}. Start Chrome and enable debugging at "
+            "chrome://inspect/#remote-debugging, or set OPEN_TERMINAL_BROWSER_CDP_URL."
+        ) from exc
+    return f"ws://127.0.0.1:{port}{lines[1]}"
 
 
 def lock_profile(profile):
@@ -94,7 +139,7 @@ def lock_profile(profile):
 
 
 class Host:
-    def __init__(self, process, display=None, channel=None):
+    def __init__(self, process=None, display=None, channel=None):
         self.process = process
         self.channel = channel
         self.display = display
@@ -109,7 +154,7 @@ class Host:
         self.reader = asyncio.create_task(self.read())
 
     async def read_stderr(self):
-        if self.process.stderr is not None:
+        if self.process is not None and self.process.stderr is not None:
             while chunk := await self.process.stderr.read(4096):
                 self.stderr = (self.stderr + chunk)[-4096:]
 
@@ -131,6 +176,9 @@ class Host:
                             )
                         else:
                             future.set_result(message.get("result", {}))
+                elif message.get("method") == "Target.detachedFromTarget":
+                    if handler := self.handlers.get(message.get("params", {}).get("sessionId")):
+                        handler("Inspector.detached", {"reason": "Chrome tab detached"})
                 elif handler := self.handlers.get(message.get("sessionId")):
                     # Handlers never wait on CDP, so its reader remains available for responses.
                     handler(message.get("method"), message.get("params", {}))
@@ -141,6 +189,8 @@ class Host:
                 if not future.done():
                     future.set_exception(RuntimeError("Chrome disconnected"))
             self.pending.clear()
+            for handler in list(self.handlers.values()):
+                handler("Inspector.detached", {"reason": "Chrome disconnected"})
 
     async def send(self, method, params=None, session=None):
         if self.reader.done():
@@ -162,20 +212,23 @@ class Host:
                 return await asyncio.wait_for(future, 15)
             except TimeoutError as exc:
                 raise RuntimeError(f"Chrome did not respond to {method}") from exc
+        except (OSError, websockets.ConnectionClosed) as exc:
+            raise RuntimeError("Chrome disconnected. Reopen this browser tab.") from exc
         finally:
             self.pending.pop(number, None)
 
     async def close(self):
-        with contextlib.suppress(Exception):
-            await asyncio.wait_for(self.send("Browser.close"), 2)
-        if self.process.returncode is None:
-            with contextlib.suppress(ProcessLookupError):
-                self.process.terminate()
-            try:
-                await asyncio.wait_for(self.process.wait(), 5)
-            except TimeoutError:
-                self.process.kill()
-                await self.process.wait()
+        if self.process is not None:
+            with contextlib.suppress(Exception):
+                await asyncio.wait_for(self.send("Browser.close"), 2)
+            if self.process.returncode is None:
+                with contextlib.suppress(ProcessLookupError):
+                    self.process.terminate()
+                try:
+                    await asyncio.wait_for(self.process.wait(), 5)
+                except TimeoutError:
+                    self.process.kill()
+                    await self.process.wait()
         self.reader.cancel()
         await asyncio.gather(self.reader, return_exceptions=True)
         with contextlib.suppress(TimeoutError):
@@ -231,11 +284,35 @@ async def windows_host(args, profile, home):
 
 async def get_host(session):
     async with host_lock:
-        key = (session.owner, session.fs.home)
-        if key in hosts and hosts[key].process.returncode is None:
+        if BROWSER_MODE == "personal" and session.fs.username:
+            raise RuntimeError("Personal Chrome requires single-user mode")
+        key = (session.owner, "personal" if BROWSER_MODE == "personal" else session.fs.home)
+        if key in hosts and not hosts[key].reader.done() and (
+            hosts[key].process is None or hosts[key].process.returncode is None
+        ):
             return hosts[key]
         if key in hosts:
             await hosts.pop(key).close()
+        if BROWSER_MODE == "personal":
+            host = None
+            try:
+                channel = await websockets.connect(
+                    await personal_endpoint(), max_size=16 * 1024 * 1024,
+                    open_timeout=20, close_timeout=2,
+                )
+                host = Host(channel=channel)
+                await host.send("Browser.getVersion")
+            except BaseException as exc:
+                if host:
+                    await host.close()
+                if isinstance(exc, asyncio.CancelledError):
+                    raise
+                raise RuntimeError(
+                    f"Could not connect to personal Chrome: {exc}. "
+                    "Enable debugging at chrome://inspect/#remote-debugging and approve the connection in Chrome."
+                ) from exc
+            hosts[key] = host
+            return host
         binary = find_browser()
         if not binary:
             raise RuntimeError(
@@ -350,7 +427,10 @@ class Chrome:
         self.peer = None
         self.frame = asyncio.Queue(maxsize=1)
         self.state_changed = asyncio.Event()
+        self.capture_changed = False
         self.width, self.height = 1024, 768
+        self.mobile = False
+        self.capture_lock = asyncio.Lock()
         self.quality = 65
         self.visible = True
         self.navigation = None
@@ -358,6 +438,8 @@ class Chrome:
         self.vnc_peer = None
         self.acks = set()
         self.refs = {}
+        self.detached = False
+        self.closed = False
         host.handlers[cdp_session] = self.event
 
     @classmethod
@@ -377,6 +459,12 @@ class Chrome:
             chrome = cls(session, host, target, attached["sessionId"])
             await chrome.send("Page.enable")
             await chrome.send("Runtime.enable")
+            if host.process is None:
+                # Match viewer coordinates before its first viewport message, even on Retina displays.
+                await chrome.send(
+                    "Emulation.setDeviceMetricsOverride",
+                    {"width": chrome.width, "height": chrome.height, "deviceScaleFactor": 1, "mobile": False},
+                )
             await chrome.send(
                 "Page.addScriptToEvaluateOnNewDocument",
                 {
@@ -392,12 +480,15 @@ class Chrome:
             return chrome
         except BaseException:
             if chrome:
-                host.handlers.pop(chrome.cdp_session, None)
-            with contextlib.suppress(Exception):
-                await host.send("Target.closeTarget", {"targetId": target})
+                await chrome.close()
+            else:
+                with contextlib.suppress(Exception):
+                    await host.send("Target.closeTarget", {"targetId": target})
             raise
 
     async def send(self, method, params=None):
+        if self.detached or self.closed:
+            raise RuntimeError("Chrome tab disconnected. Reopen this browser tab.")
         return await self.host.send(method, params, self.cdp_session)
 
     async def snapshot(self):
@@ -482,7 +573,11 @@ class Chrome:
         self.navigation = asyncio.create_task(load())
 
     def event(self, method, params):
-        if method == "Page.screencastFrame":
+        if method == "Inspector.detached":
+            self.detached = True
+            self.refs.clear()
+            self.state_changed.set()
+        elif method == "Page.screencastFrame":
             # A slow viewer must not block Chrome; retain only its newest full frame.
             task = asyncio.create_task(
                 self.send("Page.screencastFrameAck", {"sessionId": params["sessionId"]})
@@ -502,11 +597,13 @@ class Chrome:
             "Page.frameNavigated",
             "Page.navigatedWithinDocument",
             "Page.loadEventFired",
+            "Page.frameResized",
         ):
             if method == "Page.frameNavigated" and not params.get("frame", {}).get("parentId"):
                 self.refs.clear()
             if method == "Page.loadEventFired":
                 self.error = ""
+                self.capture_changed = True
             self.state_changed.set()
 
     async def state(self):
@@ -533,23 +630,34 @@ class Chrome:
             "transport": "vnc" if self.host.display else "frames",
         }
 
+    async def set_viewport(self):
+        await self.send(
+            "Emulation.setDeviceMetricsOverride",
+            {
+                "width": self.width, "height": self.height,
+                "deviceScaleFactor": 1, "mobile": self.mobile,
+            },
+        )
+
     async def capture(self):
         if self.host.display:
             return
-        await self.send("Page.stopScreencast")
-        if not self.visible:
-            return
-        await self.send("Page.bringToFront")
-        await self.send(
-            "Page.startScreencast",
-            {
-                "format": "jpeg",
-                "quality": self.quality,
-                "maxWidth": self.width,
-                "maxHeight": self.height,
-                "everyNthFrame": 1,
-            },
-        )
+        async with self.capture_lock:
+            await self.send("Page.stopScreencast")
+            if not self.visible:
+                return
+            await self.send("Page.bringToFront")
+            await self.set_viewport()
+            await self.send(
+                "Page.startScreencast",
+                {
+                    "format": "jpeg",
+                    "quality": self.quality,
+                    "maxWidth": self.width,
+                    "maxHeight": self.height,
+                    "everyNthFrame": 1,
+                },
+            )
 
     async def resize_display(self):
         display = self.host.display
@@ -609,28 +717,43 @@ class Chrome:
         self.peer = ws
         tasks = []
         binary_frames = False
-        ready = asyncio.Event()
-        ready.set()
+        viewport_ready = asyncio.Event()
+        ready = FrameWindow()
         pending_mouse = {}
         mouse_changed = asyncio.Event()
         try:
             if state := await self.state():
                 await ws.send_json(state)
-            await self.capture()
+            if self.host.process is not None:
+                await self.capture()
 
             async def frames():
                 from open_terminal.frames import Frames
 
                 encoder = Frames()
+                repaired_viewport = None
+                await viewport_ready.wait()
                 while True:
                     await ready.wait()
                     frame = await self.frame.get()
+                    data = base64.b64decode(frame["data"])
+                    with Image.open(io.BytesIO(data)) as image:
+                        width, height = image.size
+                    # Native Chrome can restore its window surface after applying emulation.
+                    # Reapply once after observing the mismatch, not on an arbitrary timer.
+                    if abs(width * self.height - height * self.width) > 2 * max(self.width, self.height):
+                        viewport = (self.width, self.height, self.mobile)
+                        if repaired_viewport != viewport:
+                            repaired_viewport = viewport
+                            await self.capture()
+                        continue
+                    repaired_viewport = None
                     if binary_frames:
                         packet = await asyncio.to_thread(
-                            encoder.jpeg, base64.b64decode(frame["data"]), self.quality
+                            encoder.jpeg, data, self.quality
                         )
                         if packet is not None:
-                            ready.clear()
+                            ready.sent()
                             await ws.send_bytes(packet)
                     else:
                         await ws.send_json(
@@ -655,6 +778,10 @@ class Chrome:
                 while True:
                     await self.state_changed.wait()
                     self.state_changed.clear()
+                    if self.capture_changed and viewport_ready.is_set():
+                        self.capture_changed = False
+                        # Navigation can leave native Chrome capture stalled until it is restarted.
+                        await self.capture()
                     if state := await self.state():
                         await ws.send_json(state)
 
@@ -667,9 +794,10 @@ class Chrome:
                     kind = msg.get("type")
                     if kind == "frames":
                         binary_frames = True
-                        await self.capture()
+                        if viewport_ready.is_set():
+                            await self.capture()
                     elif kind == "frameAck":
-                        ready.set()
+                        ready.ack(msg.get("window", 1))
                     elif kind == "navigate":
                         pending_mouse.clear()
                         self.navigate(str(msg.get("url", "")))
@@ -685,20 +813,14 @@ class Chrome:
                         await self.send("Page.reload")
                     elif kind == "visibility":
                         self.visible = msg.get("visible") is True
-                        await self.capture()
+                        if viewport_ready.is_set():
+                            await self.capture()
                     elif kind == "viewport":
                         self.width = max(240, min(2560, int(msg.get("width", 1024))))
                         self.height = max(200, min(2160, int(msg.get("height", 768))))
-                        mobile = msg.get("mobile") is True
-                        await self.send(
-                            "Emulation.setDeviceMetricsOverride",
-                            {
-                                "width": self.width,
-                                "height": self.height,
-                                "deviceScaleFactor": 1,
-                                "mobile": mobile,
-                            },
-                        )
+                        mobile = self.mobile = msg.get("mobile") is True
+                        if self.host.display:
+                            await self.set_viewport()
                         await self.send(
                             "Emulation.setTouchEmulationEnabled", {"enabled": mobile}
                         )
@@ -716,12 +838,20 @@ class Chrome:
                             async with self.host.view_lock:
                                 if self.host.viewer is self:
                                     await self.resize_display()
+                        # A reconnect can retain frames from the previous viewer's viewport.
+                        if not viewport_ready.is_set():
+                            while not self.frame.empty():
+                                self.frame.get_nowait()
                         await self.capture()
+                        viewport_ready.set()
+                        if self.capture_changed:
+                            self.state_changed.set()
                     elif kind == "quality":
                         self.quality = {"low": 40, "balanced": 65, "crisp": 90}.get(
                             msg.get("quality"), 65
                         )
-                        await self.capture()
+                        if viewport_ready.is_set():
+                            await self.capture()
                     elif kind == "mouse":
                         event = {
                             k: msg[k]
@@ -804,6 +934,9 @@ class Chrome:
                     await self.send("Page.stopScreencast")
 
     async def close(self):
+        if self.closed:
+            return
+        self.closed = True
         for task in list(self.acks):
             task.cancel()
         await asyncio.gather(*self.acks, return_exceptions=True)

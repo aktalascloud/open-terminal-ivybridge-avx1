@@ -4,6 +4,109 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.17.3] - 2026-11-07
+
+### Added
+
+- Added support for Tether to run Open Terminal without opening a directly accessible HTTP address. Your connected Open WebUI can still use the terminal through Tether. Direct HTTP access can be enabled for just your computer or for other computers on your network, and still requires an API key. Requires an updated Tether.
+- Other desktop apps can use the same connection mode through `--ipc`. See the [local connection setup](README.md#private-local-ipc).
+
+### Changed
+
+- The Linux Desktop now uses the Open WebUI homepage image as its default wallpaper in the full and agents Docker images. The image is bundled with Open Terminal. Update or rebuild your Docker image to get it.
+
+### Fixed
+
+- Fixed Docker's allowed-site restrictions being bypassed through IPv6 connections. When allowed-site restrictions or the block-all setting are enabled, new outgoing IPv6 connections are now blocked, including connections to allowed sites. Allowed sites remain reachable over IPv4.
+
+## [0.17.2] - 2026-11-06
+
+### Fixed
+
+- Fixed Discard in the Git panel leaving changes that were already marked for the next commit. Discard now returns selected existing files to their last committed version, including restoring deleted files and undoing renames. Changes to other files are kept. An updated Open WebUI is required to show Discard for every changed file.
+- Discard can now delete selected new files, whether or not they were marked for the next commit, including in projects with no commits yet. This permanently removes those files. Previously, Discard could not remove new files.
+- Fixed Discard leaving a file missing when its deletion or rename was marked for commit and another file was created with the original name. The last committed version is now restored.
+- Discard now reports a clear error when a selected folder contains its own Git repository, before changing any selected files. Previously, it reported success while leaving that folder on disk.
+
+## [0.17.1] - 2026-11-06
+
+### Added
+
+- Added support for showing Codex's reasoning effort and service tier options in Open WebUI's model controls, so you can choose how much effort it spends thinking and which service tier to use. Available choices and defaults come from your installed Codex version; options it does not report stay hidden. Requires an updated Open WebUI.
+
+### Fixed
+
+- Fixed repeated pauses before agent replies when checking which models are available. Previously, sending a Codex message could wait for another agent's slow startup or login check after the model list expired. Known models now remain available while the list refreshes in the background. With an updated Open WebUI, sending a message checks only the selected agent, so other agents cannot hold it up even on the first check.
+
+## [0.17.0] - 2026-11-06
+
+### Added
+
+- Added support for chatting with Codex, Claude Code, Cursor, Grok, OpenCode, Cline, Gemini CLI, and Pi through Open WebUI. Select your terminal in chat to see the models offered by its installed agents in the model selector. Requires an Open WebUI version with agent support. Install and sign in to each agent from the terminal first; the `agents` Docker image already includes Codex and Claude Code.
+- Agent chats work in the terminal's current folder. You can attach files, watch replies and tool activity as they happen, answer the agent's approval requests, stop a running reply, and continue the conversation with a follow-up message. Available approval prompts depend on the agent. Branching or regenerating an agent conversation requires a new chat.
+- Agent connections can recover from a brief interruption, catch up on unread output, and avoid sending the same input twice. Disconnecting does not immediately stop the agent; sessions left disconnected for more than an hour are closed during cleanup.
+- Added support for running local agents through Tether's saved Open WebUI connections. Your hosted Open WebUI can reach the agents on your computer through Tether without a public address for your computer. Requires Tether and Open WebUI versions with agent support; agent logins stay in the terminal environment.
+
+### Changed
+
+- Shortened the README around installation and connecting to Open WebUI. Moved detailed instructions for settings, Docker images, agent login, storage, multi-user setup, and temporary public access into linked guides, keeping the existing command examples.
+
+## [0.16.7] - 2026-11-06
+
+### Added
+
+- Added an `agents` Docker image with the latest Codex and Claude Code releases installed at build time alongside the full Open Terminal toolkit, with authentication configured per user at runtime. Includes AMD64 and ARM64 publishing and versioned `-agents` tags.
+
+## [0.16.6] - 2026-11-05
+
+### Fixed
+
+- Fixed the Browser tab stopping its live updates after opening a page or following a link in Chrome. The page view now resumes automatically once the new page loads, including when it finishes loading before the Browser panel is ready.
+
+## [0.16.5] - 2026-11-05
+
+### Changed
+
+- Reduced pauses between screen updates in the Browser tab and when sharing a Mac or Windows desktop over connections with noticeable delay, helping scrolling and animations stay smoother. Requires an updated Open WebUI. Browser views using the built-in Linux desktop keep their existing streaming behavior.
+
+### Fixed
+
+- Commands that print large amounts of text now slow down when the connected terminal cannot display it fast enough, preventing unread output from being discarded while the viewer catches up. Requires an updated Open WebUI.
+- Fixed terminal output getting stuck when a large paste was waiting for the running program to accept it. Output can now continue while the paste waits.
+
+## [0.16.4] - 2026-11-05
+
+### Fixed
+
+- Fixed pages using your running Chrome reverting to the Chrome window's size instead of the size selected in the Browser tab. Opening or resizing the tab, switching mobile preview, and changing display quality now keep the requested page size. Update Open WebUI as well for the related fix for pages appearing too small with empty space around them.
+- Reconnecting to a Browser tab now waits for its current size before showing the page and discards images left over from the previous connection, preventing a brief view of the page at the old size.
+
+## [0.16.3] - 2026-11-05
+
+### Added
+
+- The Browser tab can now open pages in your running Chrome using your existing website logins. Set `OPEN_TERMINAL_BROWSER_MODE=personal`, enable debugging in Chrome at `chrome://inspect/#remote-debugging`, restart Open Terminal, and approve the connection when Chrome asks. This requires single-user mode and works with Open WebUI's existing Chrome controls, without a WebUI update. See [setup instructions](docs/configuration.md#use-your-running-chrome).
+- When using your Chrome, Open Terminal opens its own tabs. Closing a Browser session or stopping Open Terminal closes those tabs while leaving Chrome and your other tabs open. If it cannot connect to the Chrome instance you selected, it reports the problem instead of opening a different browser.
+
+### Fixed
+
+- After Chrome closes, a tab closes, or the browser connection drops, attempts to control that tab now report that it disconnected and ask you to reopen it.
+
+## [0.16.2] - 2026-11-05
+
+### Added
+
+- Added `open-terminal run --isolated` and `OPEN_TERMINAL_ISOLATED=true` to start without loading saved system or user settings. Environment settings and a file explicitly selected with `--config` still apply.
+
+### Changed
+
+- Notebook support is now an optional install. Use `pip install 'open-terminal[notebooks]'` to include it. Open Terminal can start without the notebook packages, with notebook features disabled. The default Docker image still includes them.
+
+### Fixed
+
+- Terminal connections can now drop and reconnect without immediately stopping the shell or its running programs. Output continues to be collected while disconnected, with up to 1 MiB kept for reconnection. Connected apps can resume from where they left off; terminals left disconnected for more than five minutes are closed during the next cleanup.
+- Failed uploads no longer overwrite an existing file with incomplete content. The original file is replaced only after the upload has been fully written.
+
 ## [0.16.1] - 2026-11-04
 
 ### Fixed

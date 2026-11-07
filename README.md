@@ -32,3 +32,5 @@ Proxy mode rewrites page content; use managed Chrome for sign-ins and sites that
 Use the single release package. Keep user data separate from source. Settings, endpoints and model selection are runtime configuration, not build requirements. Ivy Bridge: AVX/F16C, O3 and verified LTO, without AVX2/FMA/PGO/fast-math. Actual native flags and prebuilt components are identified in the manifest.
 
 Current checks and measurements: [.avx1/measurements/latest.json](.avx1/measurements/latest.json). CPU microbenchmarks are not LLM tokens/s. Original licenses and notices apply.
+
+Current maintainer-only applied differences: [patches](patches/README.md).

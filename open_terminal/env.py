@@ -143,6 +143,11 @@ ENABLE_NOTEBOOKS = os.environ.get(
     str(config.get("enable_notebooks", True)),
 ).lower() not in ("false", "0", "no")
 
+# Notebook support is optional; the base package must start without Jupyter.
+if ENABLE_NOTEBOOKS:
+    from importlib.util import find_spec
+    ENABLE_NOTEBOOKS = all(find_spec(module) is not None for module in ("nbclient", "ipykernel"))
+
 ENABLE_BROWSER = os.environ.get(
     "OPEN_TERMINAL_ENABLE_BROWSER",
     str(config.get("enable_browser", True)),
@@ -151,6 +156,18 @@ ENABLE_BROWSER = os.environ.get(
 BROWSER_NO_SANDBOX = os.environ.get(
     "OPEN_TERMINAL_BROWSER_NO_SANDBOX", "false"
 ).lower() in ("true", "1", "yes")
+
+BROWSER_MODE = os.environ.get(
+    "OPEN_TERMINAL_BROWSER_MODE", config.get("browser_mode", "managed")
+).lower()
+if BROWSER_MODE not in ("managed", "personal"):
+    raise ValueError("OPEN_TERMINAL_BROWSER_MODE must be 'managed' or 'personal'")
+BROWSER_CDP_URL = os.environ.get(
+    "OPEN_TERMINAL_BROWSER_CDP_URL", config.get("browser_cdp_url", "")
+)
+BROWSER_USER_DATA_DIR = os.environ.get(
+    "OPEN_TERMINAL_BROWSER_USER_DATA_DIR", config.get("browser_user_data_dir", "")
+)
 
 ENABLE_DESKTOP = os.environ.get(
     "OPEN_TERMINAL_ENABLE_DESKTOP",

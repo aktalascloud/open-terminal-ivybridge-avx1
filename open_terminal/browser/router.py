@@ -30,6 +30,7 @@ from starlette.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, model_validator
 
 from open_terminal.dependencies import get_filesystem, verify_api_key
+from open_terminal.env import BROWSER_MODE
 from open_terminal.utils.fs import UserFS
 from .rewrite import (
     proxy_path,
@@ -147,7 +148,7 @@ def payload(session):
         "url": session.url,
         "title": session.title,
         "mode": session.mode,
-        "chrome_available": find_browser() is not None,
+        "chrome_available": BROWSER_MODE == "personal" or find_browser() is not None,
     }
 
 
@@ -487,7 +488,7 @@ async def chrome_socket(ws: WebSocket, sid: str, token: str):
     except HTTPException:
         await ws.close(code=4004)
         return
-    if not session.chrome:
+    if not session.chrome or session.chrome.detached or session.chrome.host.reader.done():
         await ws.close(code=4004)
         return
     vnc = ws.url.path.endswith("/vnc")
@@ -533,6 +534,8 @@ async def browser_page(request, session_id=None):
                 "This Browser tab is in Proxy mode. Switch that tab to Chrome to control it.",
             )
         chrome = session.chrome
+        if chrome.detached or chrome.host.reader.done():
+            raise HTTPException(409, "Chrome tab disconnected. Reopen this browser tab.")
         async with chrome.host.view_lock:
             # Headed Chrome cannot reliably capture background pages.
             if chrome.host.display:
