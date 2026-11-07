@@ -4,7 +4,7 @@
 
 Неофициальный форк: проверенные исправления для агентов/MCP и дополненный русский интерфейс. Один актуальный ZIP + Install.cmd.
 
-[Upstream](https://github.com/open-webui/open-terminal) · [Release](https://github.com/aktalascloud/open-terminal-ivybridge-avx1/releases/latest) · [Patches](.avx1/PATCHES.json)
+[Upstream](https://github.com/open-webui/open-terminal) · [Release](https://github.com/aktalascloud/open-terminal-ivybridge-avx1/releases/latest) · [Patches](patches/README.md)
 
 Official 0.16.1 отключает рекурсивное наблюдение вне Git, сохраняя наблюдение Git и метаданных рабочих деревьев. Защищённый health и независимый запуск сервиса сохранены.
 
