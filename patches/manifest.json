@@ -1,0 +1,105 @@
+{
+  "schema": 1,
+  "ownership": "applied-downstream-only",
+  "project": "terminal",
+  "upstream": "2d22dc9a1b5b121f189be7a3c1bcaba9d677b491",
+  "snapshot_source": "0bb9fee878cc9f9b0c11cf93572b20575b836e37",
+  "downstream_tree_without_patches": "96c06c2b2190332a92ffc91948a1729ee2964df3",
+  "groups": [
+    {
+      "patch": "01-runtime.patch",
+      "description": "Local runtime, integration, security, dependency and platform adaptations / Наши изменения работы, интеграций, безопасности и платформ.",
+      "paths": [
+        ".dockerignore",
+        ".python-version",
+        "LICENSE",
+        "dev.sh",
+        "entrypoint-openshift.sh",
+        "open_terminal/__init__.py",
+        "open_terminal/__main__.py",
+        "open_terminal/agents/discovery.py",
+        "open_terminal/agents/sessions.py",
+        "open_terminal/browser/chrome.py",
+        "open_terminal/cli.py",
+        "open_terminal/env.py",
+        "open_terminal/main.py",
+        "open_terminal/mcp_server.py",
+        "open_terminal/utils/documents.py",
+        "open_terminal/utils/file_compare.py",
+        "open_terminal/utils/git.py",
+        "open_terminal/utils/git_line_stats.py",
+        "open_terminal/utils/limits.py",
+        "open_terminal/utils/port.py",
+        "open_terminal/utils/runner.py",
+        "open_terminal/utils/search.py",
+        "open_terminal/utils/search_preview.py",
+        "open_terminal/utils/skills.py",
+        "pyproject.toml"
+      ],
+      "sha256": "3a595de9e71027c2e1787baab1922d29c063186e1552f5828aa04fd3469226de"
+    },
+    {
+      "patch": "02-build.patch",
+      "description": "Our reproducible build, toolchain and CI recipes / Наши сборочные рецепты, toolchain и CI.",
+      "paths": [
+        ".avx1/Install.cmd",
+        ".avx1/Install.ps1",
+        ".avx1/PATCHES.json",
+        ".avx1/android_sdk.py",
+        ".avx1/bench_search_cpu.py",
+        ".avx1/build.py",
+        ".avx1/common.py",
+        ".avx1/portable_build.py",
+        ".avx1/project.json",
+        ".avx1/toolchains.json",
+        ".gitattributes",
+        ".github/workflows/avx1-build.yml",
+        ".github/workflows/pypi.yml",
+        ".github/workflows/release.yml",
+        ".gitignore",
+        "Build.cmd"
+      ],
+      "sha256": "51c1882ace96d12c409f59e7d77f428f0565d0c8e5f7f0de3e019a7104f8af45"
+    },
+    {
+      "patch": "03-tests.patch",
+      "description": "Our regressions and adaptations of upstream fixtures / Наши регрессии и адаптации тестов.",
+      "paths": [
+        ".avx1/test_agent_discovery_policy.py",
+        ".avx1/test_browser_proxy_contracts.py",
+        ".avx1/test_cli_cors.py",
+        ".avx1/test_git_contracts.py",
+        ".avx1/test_locales.py",
+        ".avx1/test_mcp_cli.py",
+        ".avx1/test_public_gate.py",
+        ".avx1/test_result_delivery.py",
+        ".avx1/test_search_contract.py",
+        ".avx1/test_search_safety.py",
+        ".avx1/test_terminal.py",
+        ".avx1/test_terminal_mainstream.py"
+      ],
+      "sha256": "d538a7df4702059f937371686a9145a7dcfc3fdb3ec8ee9b1c71ee81ca504a22"
+    },
+    {
+      "patch": "04-documentation.patch",
+      "description": "Our fork documentation, notices and qualification evidence / Наши описания форка, уведомления и доказательства квалификации.",
+      "paths": [
+        ".avx1/measurements/latest.json",
+        "README.md",
+        "README.ru.md",
+        "SECURITY.md",
+        "docs/configuration.md"
+      ],
+      "sha256": "e973615ad78dc79d272b7e2c36bdcd15cb291f854e08907843c5b839b0af2974"
+    }
+  ],
+  "files": {
+    "01-runtime.patch": "3a595de9e71027c2e1787baab1922d29c063186e1552f5828aa04fd3469226de",
+    "02-build.patch": "51c1882ace96d12c409f59e7d77f428f0565d0c8e5f7f0de3e019a7104f8af45",
+    "03-tests.patch": "d538a7df4702059f937371686a9145a7dcfc3fdb3ec8ee9b1c71ee81ca504a22",
+    "04-documentation.patch": "e973615ad78dc79d272b7e2c36bdcd15cb291f854e08907843c5b839b0af2974",
+    ".gitattributes": "705fd4d6451a31d36b3df7de96f83f30ac976c9b4a6d1e51671d8e2f33e2d0da",
+    "series": "0de3cc8bf7284c341fd9a7217a5cc598d813b5a95bdebb6584f9a9c790128ada",
+    "README.md": "c2f3c139d203840fe80db474f3a0e354dba32a62c79c41e2e57b4bfc4762a1cf"
+  }
+}

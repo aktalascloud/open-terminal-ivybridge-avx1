@@ -1,0 +1,345 @@
+diff --git a/.avx1/measurements/latest.json b/.avx1/measurements/latest.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..87ea693cc86686ee5c26c82b59af94a259bd1a07
+--- /dev/null
++++ b/.avx1/measurements/latest.json
+@@ -0,0 +1,5 @@
++{
++  "scope": "current selected checks; final package and deployment receipts are recorded after CI",
++  "inference_speedup_percent": null,
++  "model_required_for_build": false
++}
+diff --git a/README.md b/README.md
+index 7a4651c00eaa1bb0b1a3421358ec4ef81fa6d0aa..1fe6c7286019ef8044177ec4164d3e12f5a9563a 100644
+--- a/README.md
++++ b/README.md
+@@ -1,135 +1,36 @@
+-# Open Terminal
++# Open Terminal AVX1
+ 
+-**A computer for your AI agents.** Run commands, search and manage files, execute code, and work with browsers and desktops through a self-hosted REST API. Connect it to [Open WebUI](https://github.com/open-webui/open-webui), or use it with your own tools.
++[Русский](README.ru.md)
+ 
+-[Documentation](https://docs.openwebui.com/features/open-terminal/) · [Changelog](CHANGELOG.md) · [Report an issue](https://github.com/open-webui/open-terminal/issues)
++Unofficial fork with reviewed agent/MCP fixes and extended Russian UI. One latest ZIP + Install.cmd.
+ 
+-[![Open Terminal in Open WebUI](https://docs.openwebui.com/assets/images/open-terminal-file-browser-54b7cab404a39c11532ca356b40ff6ed.png)](https://docs.openwebui.com/features/open-terminal/)
++[Upstream](https://github.com/open-webui/open-terminal) · [Release](https://github.com/aktalascloud/open-terminal-ivybridge-avx1/releases/latest) · [Patches](.avx1/PATCHES.json)
+ 
+-[![PyPI](https://img.shields.io/pypi/v/open-terminal)](https://pypi.org/project/open-terminal/)
+-[![License](https://img.shields.io/github/license/open-webui/open-terminal)](LICENSE)
+-[![GitHub stars](https://img.shields.io/github/stars/open-webui/open-terminal?style=social)](https://github.com/open-webui/open-terminal)
++Official 0.16.1 avoids recursive filesystem watches outside Git repositories while retaining Git/worktree metadata watches. Authenticated readiness and independent managed startup are preserved.
+ 
+-## Installation
++## Build
+ 
+-### Docker
++Requires Python 3.12+, Git and GitHub CLI for CI. No LLM, model weights or Codex dependency.
+ 
+-```bash
+-docker run -d --name open-terminal --restart unless-stopped \
+-  -p 8000:8000 \
+-  -v open-terminal:/home/user \
+-  -e OPEN_TERMINAL_API_KEY=your-secret-key \
+-  ghcr.io/open-webui/open-terminal:latest
++```cmd
++Build.cmd status
++Build.cmd build
+ ```
+ 
+-The API is available at `http://localhost:8000`, with interactive docs at [/docs](http://localhost:8000/docs). The volume keeps your files between container updates. Replace `your-secret-key` with your own key.
++`build` verifies the clean published commit and dispatches the pinned workflow. For a prepared local compiler/SDK environment: `Build.cmd local`. Dependencies, flags, tests and license gates are in `.avx1/`; lockfiles and source history are retained. Signing keys stay outside the repository.
+ 
+-| Image tag | Includes |
+-| --- | --- |
+-| `latest` | Full toolkit: Python, Node.js, build tools, browser, desktop, and document tools |
+-| `agents` | Everything in `latest`, plus the latest Codex and Claude Code CLIs |
+-| `slim` | Minimal Debian environment with git, curl, and jq |
+-| `alpine` | Minimal Alpine environment with git, curl, and jq |
+-| `openshift` | Minimal image for OpenShift restricted non-root policies |
++## Run and verify
+ 
+-Use `:agents` to run `codex` or `claude` from a terminal, signing in with your own account. See the [deployment guide](docs/deployment.md) for agent setup, image capabilities, custom packages, and updates.
++Mainstream 0.16 adds owned browser sessions, filesystem/port/process events and desktop APIs. Capture and input start only on an authenticated API/tool request; native Windows/macOS use the signed-in desktop shared across workspaces. Windows CDP stays on loopback without a network proxy. Search does not open device/FIFO/socket files or cross mounts; an explicitly selected mount remains searchable.
+ 
+-### Python
++Content-match previews retain original UTF-16 columns; the 1 MiB content-search cap also applies with ripgrep. Oversized files can still match by name. This is not a global response-byte budget.
+ 
+-Requires Python 3.11+.
++Proxy mode rewrites page content; use managed Chrome for sign-ins and sites that need browser origin isolation.
+ 
+-```bash
+-pip install open-terminal
+-open-terminal run --host 0.0.0.0 --port 8000
+-```
+-
+-Or run without installing: `uvx open-terminal run --host 0.0.0.0 --port 8000`.
+-
+-If no API key is configured, one is generated and printed at startup. For Docker, find it with `docker logs open-terminal`.
+-
+-> [!CAUTION]
+-> The API key grants command and file access. On bare metal, commands run with your user's permissions. Give access only to people and agents you trust.
+-
+-### Private local IPC
+-
+-Desktop clients can use the existing HTTP/WebSocket API without opening a TCP listener:
+-
+-```bash
+-# macOS/Linux: use a socket inside a directory owned by the current user (mode 0700).
+-open-terminal run --isolated --ipc /path/to/private-directory/api.sock
+-```
+-
+-On Windows, use a local named pipe, for example
+-`open-terminal run --isolated --ipc \\.\pipe\open-terminal-private`.
+-API-key authentication still applies. `--port 8000` adds a TCP listener;
+-it binds to `127.0.0.1` unless `--host 0.0.0.0` is explicitly supplied.
+-Use port `0` to select an available port. The bind address and port are logged at startup.
+-With `--ipc`, `--host` requires an explicit `--port`; `--cftunnel` is not supported.
+-
+-## Connect to Open WebUI
+-
+-1. Open **Settings → Admin → Integrations → Open Terminal**.
+-2. Add a URL reachable from the Open WebUI server and your API key.
+-3. Enable the connection and select the terminal in chat.
+-
+-Use the dedicated **Open Terminal** section to get the file browser and terminal panel. Compare [connection modes](docs/deployment.md#connecting-to-open-webui), or see the [connection guide](https://docs.openwebui.com/features/open-terminal/setup/connecting/) for Docker networking and personal connections.
+-
+-## Configuration
+-
+-### Coding agents in chat
+-
+-Install and sign in to the agent CLIs as the user running Open Terminal. In a compatible Open WebUI checkout, selecting this terminal adds its discovered models to the existing model selector as `<agent>/<model>`. Agent conversations run in the terminal's current directory, with streaming output, native tool/extension approvals, attachments, Stop, and conversation continuation.
+-
+-| Agent | Native interface | Executable override |
+-| --- | --- | --- |
+-| Codex | `codex app-server --listen stdio://` | `OPEN_TERMINAL_CODEX_COMMAND` |
+-| Claude Code | `claude --input-format stream-json --output-format stream-json` | `OPEN_TERMINAL_CLAUDE_COMMAND` |
+-| Cursor | `agent acp` | `OPEN_TERMINAL_CURSOR_COMMAND` |
+-| Grok | `grok --no-auto-update agent stdio` | `OPEN_TERMINAL_GROK_COMMAND` |
+-| OpenCode | `opencode acp` | `OPEN_TERMINAL_OPENCODE_COMMAND` |
+-| Cline | `cline --acp` | `OPEN_TERMINAL_CLINE_COMMAND` |
+-| Gemini CLI | `gemini --acp` | `OPEN_TERMINAL_GEMINI_COMMAND` |
+-| Pi | `pi --mode rpc` | `OPEN_TERMINAL_PI_COMMAND` |
+-
+-These adapters target current CLI protocols. ACP model discovery prefers session config options and also reads the native `models` field still advertised by current agents such as Gemini. Pi requires the current RPC `agent_settled` completion event and `--session-id` support. There are no hardcoded model lists. Log in through the CLI before using WebUI; the integration does not run interactive login flows. ACP agents execute their own filesystem and terminal tools in this environment. Pi follows its native tool policy; WebUI forwards extension confirmation dialogs but does not add a separate per-tool permission layer.
+-
+-ACP history replay is suppressed when resuming an already saved WebUI conversation. If an agent does not advertise native resume, the next turn receives the saved conversation text instead. Agent-specific editor extensions beyond ACP's standard permissions and form elicitation are not implemented.
+-
+-The same flow works through Tether's saved connection and outbound relay; the hosted server does not need to reach the local machine's IP. All three applications need the agent-capable changes. Provider CLIs and their login credentials stay in the terminal environment; no provider SDK is required in WebUI. Executable overrides above accept a path to the installed CLI.
+-
+-The authenticated `/agents` catalog advertises installed providers and models. `POST /agents/{provider}/sessions` starts an owned process; `/agents/sessions/{id}` inspects or deletes it. Its `/connect` WebSocket carries native JSONL inside sequenced input/output frames with acknowledgements and replay. Sessions require `X-User-Id` and `X-Session-Id` ownership headers (single-user clients may omit `X-User-Id`). WebSocket clients send an initial `{ "type": "auth", "token": "<API key>", "cursor": 0 }` frame. Agent turns use a single backend task and resume the provider's saved conversation on the next turn; branching/regeneration requires a new chat.
+-
+-### Server settings
+-
+-Configure Open Terminal with CLI flags, environment variables, or a TOML file. CLI flags take precedence.
+-
+-| Guide | Covers |
+-| --- | --- |
+-| [Configuration](docs/configuration.md) | Config files, browser sessions, storage, and file previews |
+-| [Deployment](docs/deployment.md) | Docker variants, coding agents, custom packages, updates, and multi-user setup |
+-| [Temporary public access](docs/tunnels.md) | Cloudflare tunnels and troubleshooting |
+-| [API reference](http://localhost:8000/docs) | Interactive endpoints on your running instance |
+-
+-## Multi-user deployments
+-
+-Built-in multi-user mode separates workspaces inside one shared container; it does **not** isolate users and is intended for small, trusted deployments.
+-
+-For separate containers per user, use [Terminals](https://github.com/open-webui/terminals). Production use requires an [Open WebUI Enterprise License](https://docs.openwebui.com/enterprise/). See the [security policy](SECURITY.md) for the trust model.
+-
+-## Support
+-
+-[Open an issue](https://github.com/open-webui/open-terminal/issues) for bugs or setup problems. Report vulnerabilities privately through [GitHub Security Advisories](https://github.com/open-webui/open-terminal/security/advisories/new).
+-
+-## Star History
++`run` honors CORS from CLI, environment and TOML in that order. `mcp --api-key` explicitly overrides the existing environment/secret-file/config sources; stdio receives no network arguments.
+ 
+-<a href="https://star-history.com/#open-webui/open-terminal&Date">
+-  <picture>
+-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=open-webui/open-terminal&type=Date&theme=dark" />
+-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=open-webui/open-terminal&type=Date" />
+-    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=open-webui/open-terminal&type=Date" />
+-  </picture>
+-</a>
++Use the single release package. Keep user data separate from source. Settings, endpoints and model selection are runtime configuration, not build requirements. Ivy Bridge: AVX/F16C, O3 and verified LTO, without AVX2/FMA/PGO/fast-math. Actual native flags and prebuilt components are identified in the manifest.
+ 
+-## License
++Current checks and measurements: [.avx1/measurements/latest.json](.avx1/measurements/latest.json). CPU microbenchmarks are not LLM tokens/s. Original licenses and notices apply.
+ 
+-[MIT](LICENSE). Bundled third-party tools retain their own licenses and terms.
++Current maintainer-only applied differences: [patches](patches/README.md).
+diff --git a/README.ru.md b/README.ru.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..d7cf789dd56934e26d618625371ec03838d2fef7
+--- /dev/null
++++ b/README.ru.md
+@@ -0,0 +1,36 @@
++# Open Terminal AVX1
++
++[English](README.md)
++
++Неофициальный форк: проверенные исправления для агентов/MCP и дополненный русский интерфейс. Один актуальный ZIP + Install.cmd.
++
++[Upstream](https://github.com/open-webui/open-terminal) · [Release](https://github.com/aktalascloud/open-terminal-ivybridge-avx1/releases/latest) · [Patches](.avx1/PATCHES.json)
++
++Official 0.16.1 отключает рекурсивное наблюдение вне Git, сохраняя наблюдение Git и метаданных рабочих деревьев. Защищённый health и независимый запуск сервиса сохранены.
++
++## Сборка
++
++Нужны Python 3.12+, Git и GitHub CLI для CI. Сборка не зависит от модели, её весов или Codex.
++
++```cmd
++Build.cmd status
++Build.cmd build
++```
++
++`build` проверяет чистоту опубликованного коммита и запускает закреплённый workflow. При готовом локальном компиляторе/SDK: `Build.cmd local`. Зависимости, флаги, тесты и проверки лицензий — в `.avx1/`. Lockfiles и история исходников сохранены. Ключи подписи в репозиторий не входят.
++
++## Установка и проверки
++
++Mainstream 0.16 добавляет браузерные сессии с проверкой владельца, события файлов/портов/процессов и desktop API. Захват и ввод начинаются только по авторизованному запросу API/инструмента; native Windows/macOS используют общий рабочий стол вошедшего пользователя. Windows CDP остаётся на loopback без сетевого прокси. Поиск не открывает устройства/FIFO/сокеты и не пересекает точки монтирования; явно выбранная точка остаётся доступной для поиска.
++
++Превью совпадений сохраняют исходные UTF-16-позиции; ограничение поиска по содержимому1 МиБ действует и с ripgrep. Большие файлы остаются доступны для поиска по имени. Это не общий лимит байтов всех ответов.
++
++Режим Proxy переписывает содержимое страниц; для входа в аккаунты и сайтов с изоляцией браузерных origins используйте управляемый Chrome.
++
++`run` учитывает CORS из CLI, окружения и TOML в этом порядке. `mcp --api-key` явно заменяет ключ из окружения, secret-файла или конфигурации; stdio не получает сетевые аргументы.
++
++Используйте единственный пакет релиза. Пользовательские данные храните отдельно от исходников. Адреса серверов и выбор моделей задаются настройками, а не требованиями сборки. Ivy Bridge: AVX/F16C, O3 и проверенный LTO, без AVX2/FMA/PGO/fast-math. Реальные флаги и prebuilt-компоненты указаны в манифесте.
++
++Последние проверки и замеры: [.avx1/measurements/latest.json](.avx1/measurements/latest.json). Микрозамеры CPU не означают скорость LLM. Исходные лицензии и уведомления сохранены.
++
++Только наши текущие применённые изменения: [patches](patches/README.md).
+diff --git a/SECURITY.md b/SECURITY.md
+index c20b303529a703ce9cc71fdf2a496ce641c06269..cc86e702f1ac18079178f7c41aa35e093e6605bd 100644
+--- a/SECURITY.md
++++ b/SECURITY.md
+@@ -1,57 +1,57 @@
+-# Security Policy
+-
+-Open Terminal is led and maintained by the same core team as Open WebUI, and it follows the same security process.
+-
+-## Relationship to the Open WebUI Security Policy
+-
+-The [Open WebUI Security Policy](https://docs.openwebui.com/security/security-policy/) applies to Open Terminal in full wherever it is semantically applicable. That includes, and is not limited to: the rules for reporting a vulnerability, the proof-of-concept and remediation requirements, AI disclosure, CVSS accuracy, admin actions being out of scope, default configuration testing, already-fixed reports, self-affecting issues, duplicate and consolidation handling, our position on foreign CNAs and vendor disposition, and responsible disclosure.
+-
+-Read that policy before filing. Everything in it that can sensibly be applied to Open Terminal is applied to Open Terminal. This document adds what is specific to this project, and where the two documents differ, this one governs reports filed here.
+-
+-## Reporting Channel
+-
+-Report through [GitHub Security Advisories on this repository](https://github.com/open-webui/open-terminal/security/advisories/new). Reports for Open Terminal code filed against `open-webui/open-webui` are closed there and have to be re-filed here, which costs you time, so file in the right place from the start.
+-
+-## Supported Versions
+-
+-Only the latest release is supported. Reproduce your finding against the latest release or against `main` before filing.
+-
+-## What Open Terminal Is
+-
+-Open Terminal runs commands on behalf of whoever holds its API key. Executing commands, reading and writing files, installing packages, and reaching the network from inside the terminal are the product working as designed. The following therefore are not vulnerabilities, and reports about them will be closed:
+-
+-1. **Command execution through the API.** Running arbitrary commands is the entire purpose of this software.
+-2. **The API key grants everything.** The key is a single full-access credential. Anyone holding it can run any command, read any file the service can reach, and use every endpoint. Treat it like a root password, and never hand it to users you would not give a shell to.
+-3. **`X-User-Id` is asserted by the caller.** Open Terminal does not authenticate end users. The calling application (for example Open WebUI) authenticates its users and sets the header, and Open Terminal trusts it. A client that holds the API key can name any user it likes, by design.
+-4. **Root inside the container in images that ship `sudo`.** The `latest` image gives its default user passwordless `sudo` so that packages can be installed at runtime. Reaching root inside that container is documented behaviour. Use `slim`, `alpine`, or `openshift` when you do not want that.
+-5. **Bare metal runs as you.** Installed with `pip`, commands run as your own user with your own permissions and your own files. That is the point of the bare metal mode.
+-6. **Operator configuration.** Mounting the Docker socket, granting extra capabilities, disabling the egress firewall, or exposing the API to an untrusted network are operator decisions with documented consequences.
+-
+-## Multi-User Mode
+-
+-`OPEN_TERMINAL_MULTI_USER=true` gives each user their own Linux account and home directory inside one shared container. It separates workspaces so that users and their agents do not walk over each other's files. It does not isolate users from each other, and it is not designed for production multi-user deployments.
+-
+-All users share one kernel, one process list, one network stack, and one temp directory, and the service that provisions their accounts has to hold elevated privileges inside that container. In that shape, the following are expected consequences of running many users in one container, and are out of scope:
+-
+-- One user reading, observing, or interfering with another user's processes, command lines, ports, or resources.
+-- Privilege escalation to root inside the container.
+-- Cross-user access to files, sessions, terminals, notebooks, or background processes in a single instance.
+-- Resource exhaustion affecting other users of the same instance.
+-
+-If your users need to be protected from each other, run one Open Terminal per user, for example with [Terminals](https://github.com/open-webui/terminals), which provisions a separate container per user and requires an [Open WebUI Enterprise License](https://docs.openwebui.com/enterprise/) for production use. Reports asking us to defend a boundary inside a single shared container are closed as documented behaviour under this section.
+-
+-## What We Do Want to Hear About
+-
+-Findings that cross out of the instance or out of the API's own trust model are in scope, including:
+-
+-- Acting on the API without a valid API key, or any bypass of the key check.
+-- Escaping the container onto the host in a default Docker deployment.
+-- Anything that lets terminal content or terminal responses run with the privileges of the calling application, for example executing at the client application's origin or reaching its credentials.
+-- Path traversal or file access that reaches outside what the API is meant to expose in a single-user deployment.
+-- Anything that affects the operator, the host, or a party other than the reporter.
+-
+-When in doubt, file it. A report that lands outside the scope above is closed quickly and without drama, and we would rather read one of those than miss something real.
+-
+----
+-
+-_Last updated on **2026-10-07**._
++# Security Policy
++
++Open Terminal is led and maintained by the same core team as Open WebUI, and it follows the same security process.
++
++## Relationship to the Open WebUI Security Policy
++
++The [Open WebUI Security Policy](https://docs.openwebui.com/security/security-policy/) applies to Open Terminal in full wherever it is semantically applicable. That includes, and is not limited to: the rules for reporting a vulnerability, the proof-of-concept and remediation requirements, AI disclosure, CVSS accuracy, admin actions being out of scope, default configuration testing, already-fixed reports, self-affecting issues, duplicate and consolidation handling, our position on foreign CNAs and vendor disposition, and responsible disclosure.
++
++Read that policy before filing. Everything in it that can sensibly be applied to Open Terminal is applied to Open Terminal. This document adds what is specific to this project, and where the two documents differ, this one governs reports filed here.
++
++## Reporting Channel
++
++Report through [GitHub Security Advisories on this repository](https://github.com/open-webui/open-terminal/security/advisories/new). Reports for Open Terminal code filed against `open-webui/open-webui` are closed there and have to be re-filed here, which costs you time, so file in the right place from the start.
++
++## Supported Versions
++
++Only the latest release is supported. Reproduce your finding against the latest release or against `main` before filing.
++
++## What Open Terminal Is
++
++Open Terminal runs commands on behalf of whoever holds its API key. Executing commands, reading and writing files, installing packages, and reaching the network from inside the terminal are the product working as designed. The following therefore are not vulnerabilities, and reports about them will be closed:
++
++1. **Command execution through the API.** Running arbitrary commands is the entire purpose of this software.
++2. **The API key grants everything.** The key is a single full-access credential. Anyone holding it can run any command, read any file the service can reach, and use every endpoint. Treat it like a root password, and never hand it to users you would not give a shell to.
++3. **`X-User-Id` is asserted by the caller.** Open Terminal does not authenticate end users. The calling application (for example Open WebUI) authenticates its users and sets the header, and Open Terminal trusts it. A client that holds the API key can name any user it likes, by design.
++4. **Root inside the container in images that ship `sudo`.** The `latest` image gives its default user passwordless `sudo` so that packages can be installed at runtime. Reaching root inside that container is documented behaviour. Use `slim`, `alpine`, or `openshift` when you do not want that.
++5. **Bare metal runs as you.** Installed with `pip`, commands run as your own user with your own permissions and your own files. That is the point of the bare metal mode.
++6. **Operator configuration.** Mounting the Docker socket, granting extra capabilities, disabling the egress firewall, or exposing the API to an untrusted network are operator decisions with documented consequences.
++
++## Multi-User Mode
++
++`OPEN_TERMINAL_MULTI_USER=true` gives each user their own Linux account and home directory inside one shared container. It separates workspaces so that users and their agents do not walk over each other's files. It does not isolate users from each other, and it is not designed for production multi-user deployments.
++
++All users share one kernel, one process list, one network stack, and one temp directory, and the service that provisions their accounts has to hold elevated privileges inside that container. In that shape, the following are expected consequences of running many users in one container, and are out of scope:
++
++- One user reading, observing, or interfering with another user's processes, command lines, ports, or resources.
++- Privilege escalation to root inside the container.
++- Cross-user access to files, sessions, terminals, notebooks, or background processes in a single instance.
++- Resource exhaustion affecting other users of the same instance.
++
++If your users need to be protected from each other, run one Open Terminal per user, for example with [Terminals](https://github.com/open-webui/terminals), which provisions a separate container per user and requires an [Open WebUI Enterprise License](https://docs.openwebui.com/enterprise/) for production use. Reports asking us to defend a boundary inside a single shared container are closed as documented behaviour under this section.
++
++## What We Do Want to Hear About
++
++Findings that cross out of the instance or out of the API's own trust model are in scope, including:
++
++- Acting on the API without a valid API key, or any bypass of the key check.
++- Escaping the container onto the host in a default Docker deployment.
++- Anything that lets terminal content or terminal responses run with the privileges of the calling application, for example executing at the client application's origin or reaching its credentials.
++- Path traversal or file access that reaches outside what the API is meant to expose in a single-user deployment.
++- Anything that affects the operator, the host, or a party other than the reporter.
++
++When in doubt, file it. A report that lands outside the scope above is closed quickly and without drama, and we would rather read one of those than miss something real.
++
++---
++
++_Last updated on **2026-10-07**._
+diff --git a/docs/configuration.md b/docs/configuration.md
+index d1510d5f958bb565b4bdbf0deca3bf7a1c37b3c1..6827dda0cc3d9f5d4c79bef3e688322a165b0a80 100644
+--- a/docs/configuration.md
++++ b/docs/configuration.md
+@@ -128,3 +128,9 @@ that want a rendered preview can add `preview=true`; when LibreOffice is
+ available the server can return DOCX and PPTX previews as PDF. When rendered
+ preview support is not available, the same endpoint falls back to returning the
+ original file bytes.
++
++## Cline discovery in this fork
++
++Automatic Cline model discovery is disabled by default because ACP discovery creates a temporary session and can write to the CLI profile. Set `OPEN_TERMINAL_ALLOW_CLINE_DISCOVERY=true` only for a deliberately selected Cline environment. Existing native Conduit/Cline SSH integration is independent of this probe.
++
++Автоматическое обнаружение моделей Cline по умолчанию отключено: ACP создаёт временную сессию и может записывать профиль CLI. Разрешайте `OPEN_TERMINAL_ALLOW_CLINE_DISCOVERY=true` только для явно выбранного окружения Cline. Нативная SSH-интеграция Conduit/Cline от этого пробного запуска не зависит.

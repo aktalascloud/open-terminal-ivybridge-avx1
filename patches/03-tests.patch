@@ -1,0 +1,1111 @@
+diff --git a/.avx1/test_agent_discovery_policy.py b/.avx1/test_agent_discovery_policy.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..f1eba96f97bd1b35e8081d535dff05265644e28a
+--- /dev/null
++++ b/.avx1/test_agent_discovery_policy.py
+@@ -0,0 +1,45 @@
++"""The default model catalog must not start or modify the owner's Cline profile."""
++import ast
++import asyncio
++import os
++import sys
++from pathlib import Path
++from types import SimpleNamespace
++import unittest
++from unittest.mock import AsyncMock, patch
++from fastapi import HTTPException
++
++
++class ClineDiscoveryPolicy(unittest.IsolatedAsyncioTestCase):
++    def test_other_os_user_does_not_inherit_server_git_or_provider_credentials(self):
++        root=Path(__file__).resolve().parents[1]
++        env=dict(os.environ,GH_TOKEN='synthetic-host',OPENAI_API_KEY='synthetic-provider',SSH_AUTH_SOCK='synthetic-socket')
++        scope={'os':os,'sanitized_environ':lambda:dict(env),'Path':Path}
++        def load(path,name):
++            node=next(n for n in ast.parse((root/path).read_text('utf-8')).body if isinstance(n,ast.FunctionDef) and n.name==name)
++            exec(compile(ast.Module(body=[node],type_ignores=[]),str(path),'exec'),scope)
++        load(Path('open_terminal/utils/git.py'),'git_environment')
++        load(Path('open_terminal/agents/sessions.py'),'identity')
++        scope['os']=SimpleNamespace(path=os.path,pathsep=os.pathsep,getuid=lambda:1000)
++        pwd=SimpleNamespace(getpwnam=lambda _:SimpleNamespace(pw_dir='/fixture-user',pw_uid=1000,pw_gid=1000))
++        with patch.dict(sys.modules,{'pwd':pwd}):
++            actual,_,_=scope['identity'](SimpleNamespace(username='fixture',home='/fixture-user'))
++        for key in ['GH_TOKEN','OPENAI_API_KEY','SSH_AUTH_SOCK']:self.assertNotIn(key,actual)
++
++    async def test_default_and_false_setting_never_spawn_cline(self):
++        source=Path(__file__).resolve().parents[1]/'open_terminal/agents/discovery.py'
++        node=next(n for n in ast.parse(source.read_text('utf-8')).body if isinstance(n,ast.AsyncFunctionDef) and n.name=='probe')
++        spawn=AsyncMock(side_effect=RuntimeError('synthetic spawn reached'))
++        scope={'os':os,'HTTPException':HTTPException,'sessions':SimpleNamespace(spawn=spawn,Start=SimpleNamespace),'asyncio':asyncio}
++        exec(compile(ast.Module(body=[node],type_ignores=[]),str(source),'exec'),scope)
++        for value in ['', 'false']:
++            with patch.dict(os.environ,{'OPEN_TERMINAL_ALLOW_CLINE_DISCOVERY':value}):
++                with self.assertRaises(HTTPException):await scope['probe']('cline',object())
++        spawn.assert_not_awaited()
++        with patch.dict(os.environ,{'OPEN_TERMINAL_ALLOW_CLINE_DISCOVERY':'true'}):
++            with self.assertRaisesRegex(RuntimeError,'synthetic spawn reached'):
++                await scope['probe']('cline',object())
++        self.assertEqual(spawn.await_count,1)
++
++
++if __name__=='__main__':unittest.main()
+diff --git a/.avx1/test_browser_proxy_contracts.py b/.avx1/test_browser_proxy_contracts.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..c19d78b8ec464dae86286188d50e1fe70fb3c73e
+--- /dev/null
++++ b/.avx1/test_browser_proxy_contracts.py
+@@ -0,0 +1,100 @@
++"""Actual proxy routes with synthetic origins/cookies and in-memory transports."""
++import asyncio
++from pathlib import Path
++import unittest
++
++import httpx
++from test_terminal_mainstream import main, FOLDER, TestClient, env_patch, fixture
++from open_terminal.browser import router
++from open_terminal.utils.fs import UserFS
++
++
++class Resource(httpx.AsyncByteStream):
++    def __init__(self): self.closed = False
++    async def __aiter__(self):
++        for _ in range(257):
++            yield b'x' * 65536
++    async def aclose(self): self.closed = True
++
++
++class ProxyContracts(unittest.TestCase):
++    def setUp(self):
++        self.client = TestClient(main.app)
++        self.sessions = dict(router.sessions)
++        self.profiles = dict(router.profiles)
++        self.calls = []
++        self.resources = []
++        self.created = []
++        for actor in ['actor-a', 'actor-b']:
++            def respond(request, actor=actor):
++                self.calls.append((actor, request))
++                if request.url.path == '/set':
++                    return httpx.Response(200, headers={'set-cookie': f'session={actor}; Secure; Path=/'}, content=b'fixture')
++                if request.url.path == '/redirect':
++                    return httpx.Response(302, headers={'location': 'https://other.invalid/next'}, content=b'')
++                if request.url.path == '/oversize':
++                    resource = Resource()
++                    self.resources.append(resource)
++                    return httpx.Response(200, headers={'content-type': 'text/html'}, stream=resource)
++                return httpx.Response(200, headers={'content-type': 'text/plain'}, content=b'fixture')
++            profile = httpx.AsyncClient(transport=httpx.MockTransport(respond), follow_redirects=False)
++            self.created.append(profile)
++            router.profiles[actor] = profile
++            router.sessions[actor] = router.Session(actor, 'synthetic-cap', actor, 'chat', UserFS(home=str(FOLDER)))
++
++    def tearDown(self):
++        self.client.close()
++        for client in self.created:
++            asyncio.run(client.aclose())
++        router.sessions.clear()
++        router.sessions.update(self.sessions)
++        router.profiles.clear()
++        router.profiles.update(self.profiles)
++
++    def url(self, actor='actor-a', path='get', token='synthetic-cap', scheme='https', host='site.invalid'):
++        return f'/browser/view/{actor}/{token}/frame/{scheme}/{host}/{path}'
++
++    def test_private_service_headers_never_reach_the_target(self):
++        response = self.client.get(self.url(), headers={'Authorization': 'Bearer synthetic-service',
++            'Cookie': 'webui=synthetic-private', 'x-user-id': 'other', 'x-session-id': 'other',
++            'x-api-key': 'synthetic-key', 'x-custom-secret': 'synthetic-private', 'Accept': 'text/plain'})
++        self.assertEqual(response.status_code, 200)
++        actor, request = self.calls[0]
++        self.assertEqual(actor, 'actor-a')
++        for key in ['authorization', 'cookie', 'x-user-id', 'x-session-id', 'x-api-key', 'x-custom-secret']:
++            self.assertNotIn(key, request.headers)
++        self.assertEqual(request.headers['accept'], 'text/plain')
++
++    def test_target_cookies_are_owner_scoped_and_not_exposed_to_the_embedder(self):
++        response = self.client.get(self.url(path='set'))
++        self.assertNotIn('set-cookie', response.headers)
++        self.client.get(self.url())
++        self.assertEqual(self.calls[-1][1].headers.get('cookie'), 'session=actor-a')
++        self.client.get(self.url(actor='actor-b'))
++        self.assertNotIn('cookie', self.calls[-1][1].headers)
++
++    def test_invalid_capability_and_target_schemes_fail_before_any_target_request(self):
++        self.assertEqual(self.client.get(self.url(token='wrong')).status_code, 404)
++        self.assertEqual(self.client.get(self.url(scheme='file')).status_code, 400)
++        self.assertEqual(self.client.get(self.url(host='user:password@site.invalid')).status_code, 400)
++        self.assertEqual(self.calls, [])
++
++    def test_redirects_are_rewritten_without_automatically_following(self):
++        response = self.client.get(self.url(path='redirect'), follow_redirects=False)
++        self.assertEqual(response.status_code, 302)
++        self.assertEqual(len(self.calls), 1)
++        self.assertIn('/frame/https/other.invalid/next', response.headers['location'])
++
++    def test_oversized_rewritten_resource_closes_its_stream_and_returns_a_bounded_error(self):
++        response = self.client.get(self.url(path='oversize'))
++        self.assertEqual(response.status_code, 413)
++        self.assertLess(len(response.content), 200)
++        self.assertTrue(self.resources[0].closed)
++
++
++if __name__ == '__main__':
++    try:
++        unittest.main()
++    finally:
++        env_patch.stop()
++        fixture.cleanup()
+diff --git a/.avx1/test_cli_cors.py b/.avx1/test_cli_cors.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..614bd756a2ae951cdc4724d88900df0940043cce
+--- /dev/null
++++ b/.avx1/test_cli_cors.py
+@@ -0,0 +1,99 @@
++"""Isolated CLI CORS regressions; no server or host config is accessed."""
++import os
++from pathlib import Path
++import sys
++import tempfile
++import types
++import unittest
++from unittest.mock import patch
++
++source = Path(sys.argv.pop(1)) if len(sys.argv) > 1 else Path(__file__).resolve().parents[1]
++sys.path.insert(0, str(source))
++from click.testing import CliRunner
++from open_terminal import cli, config
++
++
++class CorsPrecedence(unittest.TestCase):
++    def test_run_resolves_key_file_without_conflicting_sources_or_printing_its_key(self):
++        work = source / '.avx1-work'
++        work.mkdir(exist_ok=True)
++        with tempfile.TemporaryDirectory(dir=work, prefix='key-file-contract-') as directory:
++            root = Path(directory).resolve()
++            self.assertTrue(root.is_relative_to(work.resolve()))
++            secret = root / 'api-key'
++            secret.write_text('synthetic-file-key\n', encoding='utf-8')
++            values = {key: value for key, value in os.environ.items() if not key.upper().startswith('OPEN_TERMINAL_')}
++            values.update(OPEN_TERMINAL_API_KEY_FILE=str(secret), XDG_CONFIG_HOME=str(root / 'xdg'))
++            fake_env = types.ModuleType('open_terminal.env')
++            fake_env.UVICORN_LOOP = 'auto'
++            fake_env.UVICORN_TIMEOUT_KEEP_ALIVE = None
++            received = []
++            with patch.dict(os.environ, values, clear=True), \
++                 patch.object(config, '_SYSTEM_CONFIG_PATH', root / 'no-system-config'), \
++                 patch.dict(sys.modules, {'open_terminal.env': fake_env}), \
++                 patch.object(cli.uvicorn, 'run', side_effect=lambda *args, **kwargs: received.append(
++                     (os.environ.get('OPEN_TERMINAL_API_KEY'), 'OPEN_TERMINAL_API_KEY_FILE' in os.environ))):
++                try:
++                    result = CliRunner().invoke(cli.main, ['run', '--host', '127.0.0.1', '--port', '0'])
++                    self.assertEqual(result.exit_code, 0, result.exception)
++                    self.assertEqual(received, [('synthetic-file-key', False)])
++                    self.assertNotIn('synthetic-file-key', result.output)
++                finally:
++                    config._config = {}
++
++    def invoke(self, *, system=None, user=None, environment=None, arguments=()):
++        with tempfile.TemporaryDirectory(prefix='terminal-cors-review-') as directory:
++            root = Path(directory)
++            system_path = root / 'system.toml'
++            user_path = root / 'xdg/open-terminal/config.toml'
++            user_path.parent.mkdir(parents=True)
++            for path, value in ((system_path, system), (user_path, user)):
++                if value is not None:
++                    path.write_text('cors_allowed_origins = ' + value + '\n', encoding='utf-8')
++            environment_values = {k: v for k, v in os.environ.items() if not k.upper().startswith('OPEN_TERMINAL_')}
++            environment_values.update(XDG_CONFIG_HOME=str(root / 'xdg'))
++            environment_values.update(environment or {})
++            received = []
++            fake_env = types.ModuleType('open_terminal.env')
++            fake_env.UVICORN_LOOP = 'auto'
++            fake_env.UVICORN_TIMEOUT_KEEP_ALIVE = None
++            with patch.dict(os.environ, environment_values, clear=True), \
++                 patch.object(config, '_SYSTEM_CONFIG_PATH', system_path), \
++                 patch.dict(sys.modules, {'open_terminal.env': fake_env}), \
++                 patch.object(cli.uvicorn, 'run', side_effect=lambda *a, **k: received.append(os.environ.get('OPEN_TERMINAL_CORS_ALLOWED_ORIGINS'))):
++                try:
++                    result = CliRunner().invoke(cli.main, ['run', '--host', '127.0.0.1', '--api-key', 'synthetic-cors-review', *arguments])
++                    return result, received
++                finally:
++                    config._config = {}
++
++    def test_precedence_and_explicit_restrictions(self):
++        cases = [
++            ({}, '*'),
++            ({'system': '"https://system.example"'}, 'https://system.example'),
++            ({'system': '"https://system.example"', 'user': '"https://user.example"'}, 'https://user.example'),
++            ({'user': '"https://user.example"', 'environment': {'OPEN_TERMINAL_CORS_ALLOWED_ORIGINS': 'https://env.example'}}, 'https://env.example'),
++            ({'user': '"https://user.example"', 'arguments': ['--cors-allowed-origins', '*']}, '*'),
++            ({'user': '"https://user.example"', 'arguments': ['--cors-allowed-origins', '']}, ''),
++            ({'user': '"https://user.example"', 'environment': {'OPEN_TERMINAL_CORS_ALLOWED_ORIGINS': 'https://env.example'}, 'arguments': ['--cors-allowed-origins', 'https://cli.example']}, 'https://cli.example'),
++            ({'user': '""'}, ''),
++            ({'user': '"*"'}, '*'),
++        ]
++        for settings, expected in cases:
++            with self.subTest(settings=settings):
++                result, received = self.invoke(**settings)
++                self.assertEqual(result.exit_code, 0, repr(result.exception))
++                self.assertEqual(received, [expected])
++                self.assertEqual("CORS is set to '*'" in result.output, expected == '*')
++
++    def test_invalid_config_cannot_start_server(self):
++        for value in ('123', 'true', '["https://list.example"]'):
++            with self.subTest(value=value):
++                result, received = self.invoke(user=value)
++                self.assertEqual(result.exit_code, 2)
++                self.assertEqual(received, [])
++                self.assertIn('cors_allowed_origins', result.output)
++
++
++if __name__ == '__main__':
++    unittest.main()
+diff --git a/.avx1/test_git_contracts.py b/.avx1/test_git_contracts.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..6ec1587f2e6cba8344850d3fc94cc467e321faf4
+--- /dev/null
++++ b/.avx1/test_git_contracts.py
+@@ -0,0 +1,102 @@
++"""Git trust boundaries; synthetic identities/processes and one stdlib worker."""
++import asyncio
++import json
++import os
++from pathlib import Path
++import subprocess
++import sys
++import tempfile
++from types import SimpleNamespace as NS
++import unittest
++from unittest.mock import AsyncMock, patch
++
++sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
++from open_terminal.utils.git import GitRepository, git_environment
++from fastapi import HTTPException
++
++ROOT = Path(__file__).resolve().parents[1]
++
++
++class GitContracts(unittest.IsolatedAsyncioTestCase):
++    def test_multiuser_credentials_and_agents_are_not_inherited(self):
++        environment = {'OPEN_TERMINAL_API_KEY': 'synthetic-service', 'GH_TOKEN': 'synthetic-server',
++            'GH_ENTERPRISE_TOKEN': 'synthetic-enterprise', 'GH_CONFIG_DIR': 'server-config',
++            'SSH_AUTH_SOCK': 'server-socket', 'SSH_AGENT_PID': 'server-agent', 'GNUPGHOME': 'server-gpg',
++            'GPG_AGENT_INFO': 'server-info', 'XDG_CONFIG_HOME': 'server-config', 'XDG_RUNTIME_DIR': 'server-runtime',
++            'GIT_CONFIG_GLOBAL': 'server-git', 'git_config_system': 'server-git-lower', 'KEEP': 'preserved'}
++        with patch.dict(os.environ, environment, clear=True):
++            result = git_environment(NS(username='actor', home='actor-home'))
++        for key in ['OPEN_TERMINAL_API_KEY', 'GH_TOKEN', 'GH_ENTERPRISE_TOKEN', 'SSH_AUTH_SOCK',
++                    'SSH_AGENT_PID', 'GPG_AGENT_INFO', 'XDG_RUNTIME_DIR', 'GIT_CONFIG_GLOBAL', 'git_config_system']:
++            self.assertNotIn(key, result)
++        self.assertEqual(result['HOME'], 'actor-home')
++        self.assertEqual(result['GH_CONFIG_DIR'], os.path.join('actor-home', '.config', 'gh'))
++        self.assertEqual(result['GNUPGHOME'], os.path.join('actor-home', '.gnupg'))
++        self.assertEqual(result['KEEP'], 'preserved')
++        self.assertEqual(result['GH_PROMPT_DISABLED'], '1')
++
++    def test_singleuser_signed_in_cli_identity_and_application_environment_are_preserved(self):
++        with patch.dict(os.environ, {'GH_TOKEN': 'synthetic-own', 'SSH_AUTH_SOCK': 'own-socket', 'KEEP': 'yes'}, clear=True):
++            result = git_environment(NS(username=None, home='own-home'))
++        self.assertEqual(result['GH_TOKEN'], 'synthetic-own')
++        self.assertEqual(result['SSH_AUTH_SOCK'], 'own-socket')
++        self.assertEqual(result['KEEP'], 'yes')
++
++    def test_parent_and_absolute_file_paths_are_rejected_before_git(self):
++        repo = GitRepository.__new__(GitRepository)
++        repo.root = os.path.abspath('synthetic-repo')
++        repo.fs = NS(_check_path=lambda path: None)
++        for path in ['../outside', os.path.abspath('elsewhere')]:
++            with self.subTest(path=path), self.assertRaises(HTTPException) as error:
++                repo.file_path(path)
++            self.assertEqual(error.exception.status_code, 400)
++
++    def test_metadata_realpath_is_checked_under_the_actor_boundary(self):
++        def check(path):
++            if path == 'other-actor':
++                raise PermissionError('synthetic boundary')
++        repo = GitRepository.__new__(GitRepository)
++        repo.fs = NS(_check_path=check)
++        with patch('open_terminal.utils.git.os.path.realpath', return_value='other-actor'):
++            with self.assertRaises(HTTPException) as error:
++                repo.checked_path('own-looking-symlink')
++        self.assertEqual(error.exception.status_code, 403)
++
++    async def test_executable_is_resolved_before_repository_cwd_and_no_shell_is_used(self):
++        repo = GitRepository.__new__(GitRepository)
++        repo.root = os.path.abspath('synthetic-repo')
++        repo.fs = NS(username=None, home='synthetic-home')
++        class Stream:
++            async def read(self, size=-1): return b''
++        process = NS(pid=123, returncode=0, stdout=Stream(), stderr=Stream(), wait=AsyncMock(return_value=0))
++        resolved = os.path.abspath('trusted-tools/git.exe')
++        with patch('open_terminal.utils.git.shutil.which', return_value=resolved), \
++             patch('open_terminal.utils.git.asyncio.create_subprocess_exec', new=AsyncMock(return_value=process)) as launch, \
++             patch('open_terminal.utils.git.os.name', 'nt'):
++            self.assertEqual(await repo.run('status', '--porcelain'), (0, '', ''))
++        self.assertEqual(launch.call_args.args[0], resolved)
++        self.assertEqual(launch.call_args.kwargs['cwd'], repo.root)
++        self.assertNotIn('shell', launch.call_args.kwargs)
++
++    def test_stdlib_worker_ignores_repository_packages_and_pythonpath(self):
++        work = ROOT / '.avx1-work'
++        work.mkdir(exist_ok=True)
++        with tempfile.TemporaryDirectory(dir=work, prefix='git-worker-') as directory:
++            folder = Path(directory).resolve()
++            self.assertTrue(folder.is_relative_to(work.resolve()))
++            (folder / 'json.py').write_text("raise RuntimeError('repository json imported')", encoding='utf-8')
++            (folder / 'open_terminal').mkdir()
++            (folder / 'open_terminal/__init__.py').write_text("raise RuntimeError('repository package imported')", encoding='utf-8')
++            (folder / 'text.txt').write_text('first\nsecond', encoding='utf-8')
++            (folder / 'binary.bin').write_bytes(b'\x00binary')
++            result = subprocess.run([sys.executable, '-I', str(ROOT / 'open_terminal/utils/git_line_stats.py')],
++                input=json.dumps(['text.txt', 'binary.bin']).encode(), cwd=folder, capture_output=True, timeout=10,
++                env={**{key: os.environ[key] for key in ['SYSTEMROOT', 'WINDIR', 'COMSPEC', 'PATH', 'TEMP', 'TMP'] if key in os.environ},
++                     'PYTHONPATH': str(folder)},
++                creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
++            self.assertEqual(result.returncode, 0, result.stderr.decode(errors='replace'))
++            self.assertEqual(json.loads(result.stdout), {'text.txt': 2, 'binary.bin': None})
++
++
++if __name__ == '__main__':
++    unittest.main()
+diff --git a/.avx1/test_locales.py b/.avx1/test_locales.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..c08ce8b6cabbd90f797e706467133345703b5fca
+--- /dev/null
++++ b/.avx1/test_locales.py
+@@ -0,0 +1,35 @@
++"""Reject missing Russian UI keys or changed interpolation parameters."""
++import json
++from pathlib import Path
++import re
++from common import ROOT
++
++project=json.loads((ROOT/'.avx1/project.json').read_text('utf-8'))['id']
++paths={
++ 'webui':('src/lib/i18n/locales/en-US/translation.json','src/lib/i18n/locales/ru-RU/translation.json'),
++ 'desktop':('src/renderer/src/lib/i18n/locales/en-US/translation.json','src/renderer/src/lib/i18n/locales/ru-RU/translation.json'),
++ 'conduit':('lib/l10n/app_en.arb','lib/l10n/app_ru.arb')
++}
++if project not in paths:
++    print('Terminal UI is localized in its host applications; command output is unchanged.')
++    raise SystemExit(0)
++en,ru=[json.loads((ROOT/path).read_text('utf-8')) for path in paths[project]]
++allow=json.loads((ROOT/'.avx1/locale-allowlist.json').read_text('utf-8'))
++checked=0
++for key,source in en.items():
++    if key.startswith('@') or not isinstance(source,str):continue
++    if project=='webui' and not source:source=key
++    target=ru.get(key)
++    if not isinstance(target,str) or not target.strip():raise RuntimeError('Missing Russian UI string: '+key)
++    expression=r'\{\{\s*([^{}]+?)\s*\}\}' if project!='conduit' else r'\{([A-Za-z_]\w*)\}'
++    if project=='conduit' and en.get('@'+key,{}).get('placeholders'):
++        names=set(en['@'+key]['placeholders'])
++        if set(ru.get('@'+key,{}).get('placeholders',{}))!=names or any(not re.search(r'\{'+re.escape(name)+r'\s*[,}]',target) for name in names):
++            raise RuntimeError('Russian ICU parameters changed: '+key)
++    elif set(re.findall(expression,source))!=set(re.findall(expression,target)):
++        raise RuntimeError('Russian interpolation mismatch: '+key)
++    visible=re.sub(expression,'',source)
++    if source==target and re.search('[A-Za-z]',visible) and allow.get(key)!=source:
++        raise RuntimeError('Unreviewed English UI string: '+key)
++    checked+=1
++print('RUSSIAN_LOCALE_KEYS_AND_PARAMETERS_VERIFIED='+str(checked))
+diff --git a/.avx1/test_mcp_cli.py b/.avx1/test_mcp_cli.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..a15a235433ff41d393f555ded3ecc225f5007269
+--- /dev/null
++++ b/.avx1/test_mcp_cli.py
+@@ -0,0 +1,93 @@
++"""Exercise MCP CLI key resolution with the real env loader and a stub server."""
++import builtins
++import importlib.util
++import os
++from pathlib import Path
++import sys
++import tempfile
++import types
++import unittest
++from unittest.mock import patch
++
++SOURCE = Path(sys.argv.pop(1)) if len(sys.argv) > 1 else Path(__file__).resolve().parents[1]
++sys.path.insert(0, str(SOURCE))
++from click.testing import CliRunner
++from open_terminal import cli, config
++
++
++class McpCli(unittest.TestCase):
++    def invoke(self, *, values=None, arguments=(), secret=False, missing_file=False):
++        with tempfile.TemporaryDirectory(prefix='terminal-mcp-cli-') as directory:
++            root = Path(directory)
++            config_path = root / 'config.toml'
++            config_path.write_text('api_key = "synthetic-config"\nhost = "127.0.0.1"\nport = 8123\n', encoding='utf-8')
++            environment = {k: v for k, v in os.environ.items() if not k.upper().startswith('OPEN_TERMINAL_')}
++            environment.update(XDG_CONFIG_HOME=str(root / 'xdg'), XDG_STATE_HOME=str(root / 'state'))
++            environment.update(values or {})
++            if secret or missing_file:
++                secret_path = root / 'key.txt'
++                if secret:
++                    secret_path.write_text('synthetic-file\n', encoding='utf-8')
++                environment['OPEN_TERMINAL_API_KEY_FILE'] = str(secret_path)
++            received = []
++            original_import = builtins.__import__
++
++            def import_module(name, *args, **kwargs):
++                if name != 'open_terminal.mcp_server':
++                    return original_import(name, *args, **kwargs)
++                spec = importlib.util.spec_from_file_location('_review_terminal_env', SOURCE / 'open_terminal/env.py')
++                env = importlib.util.module_from_spec(spec)
++                spec.loader.exec_module(env)
++                server = types.SimpleNamespace(run=lambda **options: received.append({
++                    'key': env.API_KEY,
++                    'file_present': 'OPEN_TERMINAL_API_KEY_FILE' in os.environ,
++                    'options': options,
++                }))
++                return types.SimpleNamespace(mcp=server)
++
++            with patch.dict(os.environ, environment, clear=True), \
++                 patch.object(config, '_SYSTEM_CONFIG_PATH', root / 'no-system-config.toml'), \
++                 patch('builtins.__import__', side_effect=import_module):
++                try:
++                    result = CliRunner().invoke(cli.main, ['mcp', '--config', str(config_path), *arguments])
++                    return result, received
++                finally:
++                    config._config = {}
++
++    def test_existing_sources_and_explicit_override(self):
++        cases = [
++            ({}, 'synthetic-config', False),
++            ({'values': {'OPEN_TERMINAL_API_KEY': 'synthetic-env'}}, 'synthetic-env', False),
++            ({'secret': True}, 'synthetic-file', True),
++            ({'arguments': ['--api-key', 'synthetic-cli']}, 'synthetic-cli', False),
++            ({'values': {'OPEN_TERMINAL_API_KEY': 'synthetic-env'}, 'arguments': ['--api-key', 'synthetic-cli']}, 'synthetic-cli', False),
++            ({'secret': True, 'arguments': ['--api-key', 'synthetic-cli']}, 'synthetic-cli', False),
++            ({'values': {'OPEN_TERMINAL_API_KEY': 'synthetic-env'}, 'secret': True, 'arguments': ['--api-key', 'synthetic-cli']}, 'synthetic-cli', False),
++            ({'missing_file': True, 'arguments': ['--api-key', 'synthetic-cli']}, 'synthetic-cli', False),
++        ]
++        for settings, key, file_present in cases:
++            with self.subTest(settings=settings):
++                result, received = self.invoke(**settings)
++                self.assertEqual(result.exit_code, 0, repr(result.exception))
++                self.assertEqual(received, [{'key': key, 'file_present': file_present, 'options': {'transport': 'stdio'}}])
++                self.assertNotIn(key, result.output)
++
++    def test_mutually_exclusive_and_unreadable_sources_fail_before_start(self):
++        for settings in [
++            {'secret': True, 'values': {'OPEN_TERMINAL_API_KEY': 'synthetic-env'}},
++            {'secret': True, 'values': {'OPEN_TERMINAL_API_KEY': ''}},
++            {'missing_file': True},
++        ]:
++            with self.subTest(settings=settings):
++                result, received = self.invoke(**settings)
++                self.assertNotEqual(result.exit_code, 0)
++                self.assertEqual(received, [])
++
++    def test_http_preserves_host_port_and_key(self):
++        result, received = self.invoke(arguments=['--transport', 'streamable-http', '--host', '127.0.0.1', '--port', '8124', '--api-key', 'synthetic-cli'])
++        self.assertEqual(result.exit_code, 0, repr(result.exception))
++        self.assertEqual(received, [{'key': 'synthetic-cli', 'file_present': False, 'options': {'transport': 'streamable-http', 'host': '127.0.0.1', 'port': 8124}}])
++
++
++if __name__ == '__main__':
++    unittest.main()
+diff --git a/.avx1/test_public_gate.py b/.avx1/test_public_gate.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..47c838c134e28d50bc0af648203721f193559e63
+--- /dev/null
++++ b/.avx1/test_public_gate.py
+@@ -0,0 +1,18 @@
++import unittest
++from common import scan_bytes
++
++
++class PublicGateTests(unittest.TestCase):
++    def test_tailwind_mask_classes_are_not_api_keys(self):
++        scan_bytes(b'.mask-linear-from-transparent-to-transparent{mask-type:luminance}', 'fixture.css')
++
++    def test_real_token_shapes_and_utf16_private_keys_still_fail_closed(self):
++        for prefix, length in ((b'sk-', 48), (b'sk-proj-', 64), (b'ghp_', 40), (b'hf_', 36)):
++            value = b'"' + prefix + b'a' * length + b'"'
++            with self.subTest(prefix=prefix):
++                with self.assertRaises(ValueError): scan_bytes(value, 'credential fixture')
++                with self.assertRaises(ValueError): scan_bytes(value.decode().encode('utf-16-le'), 'UTF16 fixture')
++
++
++if __name__ == '__main__':
++    unittest.main()
+diff --git a/.avx1/test_result_delivery.py b/.avx1/test_result_delivery.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..a55c07feffa6fbaf0b40597714e623504f4493cd
+--- /dev/null
++++ b/.avx1/test_result_delivery.py
+@@ -0,0 +1,38 @@
++import ast
++import asyncio
++from pathlib import Path
++from types import SimpleNamespace as NS
++import unittest
++from unittest.mock import AsyncMock
++from starlette.background import BackgroundTask
++
++scope={'time':NS(time=lambda:1000),'PROCESS_EXPIRY':300,'PROCESS_UNDELIVERED_EXPIRY':1800,
++       'BackgroundTask':BackgroundTask,'_processes':{},'asyncio':asyncio,'_process_list_changed':asyncio.Event()}
++tree=ast.parse((Path(__file__).resolve().parents[1]/'open_terminal/main.py').read_text('utf-8'))
++nodes=[n for n in tree.body if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef)) and n.name in {'_cleanup_expired','_process_log_response','_notify_process_list'}]
++assert len(nodes)==3
++exec(compile(ast.Module(body=nodes,type_ignores=[]),'actual-result-retention','exec'),scope)
++
++class ResultDelivery(unittest.IsolatedAsyncioTestCase):
++    def test_unread_and_running_results_remain_available(self):
++        items={'unread':NS(id='unread',finished_at=100,delivered_at=None),
++          'read':NS(id='read',finished_at=100,delivered_at=600),
++          'ancient':NS(id='ancient',finished_at=-1000,delivered_at=None),
++          'running':NS(id='running',finished_at=None,delivered_at=None)}
++        scope['_processes']=items;scope['_cleanup_expired']()
++        self.assertEqual(set(items),{'unread','running'})
++    async def test_only_completed_delivery_starts_short_expiry(self):
++        cleanup=AsyncMock();response=NS(background=cleanup)
++        scope['log_response']=AsyncMock(return_value=response)
++        process=NS(log_path='fixture',delivered_at=None)
++        result=await scope['_process_log_response'](process,{'status':'completed'})
++        self.assertIsNone(process.delivered_at)
++        await result.background()
++        self.assertEqual(process.delivered_at,1000);cleanup.assert_awaited_once()
++    async def test_running_snapshot_never_marks_final_result_delivered(self):
++        cleanup=AsyncMock();scope['log_response']=AsyncMock(return_value=NS(background=cleanup))
++        process=NS(log_path='fixture',delivered_at=None)
++        result=await scope['_process_log_response'](process,{'status':'running'})
++        await result.background();self.assertIsNone(process.delivered_at)
++
++if __name__=='__main__':unittest.main()
+diff --git a/.avx1/test_search_contract.py b/.avx1/test_search_contract.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..790aba58edfee85893d9941de9e547c011d284c6
+--- /dev/null
++++ b/.avx1/test_search_contract.py
+@@ -0,0 +1,75 @@
++"""PR178 independent search fixes; synthetic files and fake RG, real HTTP route."""
++from contextlib import contextmanager
++from pathlib import Path
++import tempfile
++import unittest
++from unittest.mock import Mock, patch
++
++from test_terminal_mainstream import main, AUTH, FOLDER, TestClient, env_patch, fixture
++
++
++class SearchContract(unittest.TestCase):
++    def setUp(self):
++        self.directory = tempfile.TemporaryDirectory(dir=FOLDER)
++        self.root = Path(self.directory.name)
++        self.client = TestClient(main.app)
++
++    def tearDown(self):
++        self.client.close()
++        self.directory.cleanup()
++
++    def matches(self, path, text, query, rg):
++        path.write_text(text, encoding='utf-8', newline='')
++        @contextmanager
++        def matching(*args):
++            yield rg
++        with patch.object(main, 'search_entries', return_value=[(str(path), 'file')]), \
++             patch.object(main, 'matching_files', matching):
++            response = self.client.get('/files/matches', headers=AUTH,
++                params={'path': str(self.root), 'query': query})
++        self.assertEqual(response.status_code, 200, response.text)
++        return response.json()
++
++    def test_original_unicode_position_and_utf16_column_in_both_search_paths(self):
++        for text, expected in [('İx target', 4), ('😀İx target', 6), ('Before TARGET', 8)]:
++            for rg in [None, lambda path: True]:
++                with self.subTest(text=text, rg=rg is not None):
++                    data = self.matches(self.root / 'file.txt', text, 'target', rg)
++                    match = data['results'][0]['content_matches'][0]
++                    self.assertEqual(match, {'line': 1, 'column': expected, 'text': text})
++
++    def test_size_cap_applies_before_rg_predicate(self):
++        rg = Mock(return_value=True)
++        with patch.object(main, 'MAX_CONTENT_SEARCH_FILE_SIZE', 32):
++            data = self.matches(self.root / 'file.txt', 'target' * 100, 'target', rg)
++        self.assertEqual(data['results'], [])
++        rg.assert_not_called()
++
++    def test_long_matching_line_reuses_bounded_preview_without_losing_position(self):
++        text = '界' * 20000 + 'target' + 'suffix'
++        for rg in [None, lambda path: True]:
++            with self.subTest(rg=rg is not None):
++                data = self.matches(self.root / 'file.txt', text, 'target', rg)
++                match = data['results'][0]['content_matches'][0]
++                self.assertEqual(match['column'], 20001)
++                self.assertTrue(match['excerpt_truncated'])
++                self.assertIn('target', match['text'])
++                self.assertIn('truncated', match['text'])
++                self.assertLess(len(match['text'].encode('utf-8')), 1600)
++
++    def test_large_file_still_matches_filename_without_content_scan(self):
++        rg = Mock(return_value=True)
++        with patch.object(main, 'MAX_CONTENT_SEARCH_FILE_SIZE', 32):
++            data = self.matches(self.root / 'target.txt', 'target' * 100, 'target', rg)
++        self.assertEqual(len(data['results']), 1)
++        self.assertTrue(data['results'][0]['name_match'])
++        self.assertEqual(data['results'][0]['content_matches'], [])
++        rg.assert_not_called()
++
++
++if __name__ == '__main__':
++    try:
++        unittest.main()
++    finally:
++        env_patch.stop()
++        fixture.cleanup()
+diff --git a/.avx1/test_search_safety.py b/.avx1/test_search_safety.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..2850cf3df7a0cc83b82b0814a729d7a37b24a560
+--- /dev/null
++++ b/.avx1/test_search_safety.py
+@@ -0,0 +1,77 @@
++"""PR192 device/mount boundaries; synthetic stat data, no device is opened."""
++import os
++from pathlib import Path
++import stat
++import sys
++from types import SimpleNamespace as NS
++import unittest
++from unittest.mock import patch
++import tempfile
++
++sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
++from open_terminal.utils import search
++
++
++class SearchSafety(unittest.TestCase):
++    def test_only_regular_files_are_content_candidates(self):
++        for mode, expected in [(stat.S_IFREG, True), (stat.S_IFCHR, False), (stat.S_IFIFO, False), (stat.S_IFSOCK, False)]:
++            with self.subTest(mode=mode), patch.object(search.os, 'stat', return_value=NS(st_mode=mode)):
++                self.assertEqual(search.is_regular_file('synthetic-path'), expected)
++        with patch.object(search.os, 'stat', side_effect=PermissionError):
++            self.assertFalse(search.is_regular_file('unavailable'))
++
++    def test_walk_does_not_cross_mounts_or_allowed_path_boundary(self):
++        directories = ['same', 'mounted', 'forbidden']
++        fs = NS(is_path_allowed=lambda path: os.path.basename(path) != 'forbidden')
++        with patch.object(search.os, 'walk', return_value=[('root', directories, ['file.txt'])]), \
++             patch.object(search, '_device', side_effect=lambda path: 2 if os.path.basename(path) == 'mounted' else 1):
++            result = list(search.walk_entries(fs, 'root'))
++        self.assertEqual({os.path.basename(path) for path, _ in result}, {'same', 'file.txt'})
++
++    def test_explicit_mount_root_remains_searchable(self):
++        directories = ['child']
++        with patch.object(search.os, 'walk', return_value=[('mounted', directories, ['file.txt'])]), \
++             patch.object(search, '_device', return_value=2):
++            result = list(search.walk_entries(NS(is_path_allowed=lambda path: True), 'mounted'))
++        self.assertEqual({os.path.basename(path) for path, _ in result}, {'child', 'file.txt'})
++
++    def test_pseudo_filesystem_prefix_is_not_a_similar_directory_name(self):
++        with patch.object(search.os.path, 'realpath', side_effect=lambda path: path), patch.object(search.os, 'sep', '/'):
++            for root in ('/dev', '/dev/pts', '/proc/1', '/sys/kernel'):
++                self.assertTrue(search._is_pseudo_filesystem(root))
++            self.assertFalse(search._is_pseudo_filesystem('/devices'))
++
++    def test_pseudo_root_never_reaches_ripgrep(self):
++        with patch.object(search, '_is_pseudo_filesystem', return_value=True), patch.object(search.subprocess, 'run') as run:
++            with search.matching_files('needle', '/dev', True) as matcher:
++                self.assertIsNone(matcher)
++            run.assert_not_called()
++
++    def test_ripgrep_root_has_mount_and_pseudo_tree_guards(self):
++        calls = []
++        realpath = search.os.path.realpath
++        temporary_directory = tempfile.TemporaryDirectory
++        work = Path(__file__).resolve().parents[1] / '.avx1-work'
++        work.mkdir(exist_ok=True)
++        def owned_temporary(*args, **kwargs):
++            kwargs['dir'] = work
++            directory = temporary_directory(*args, **kwargs)
++            assert Path(directory.name).resolve().is_relative_to(work.resolve())
++            return directory
++        def run(command, **kwargs):
++            calls.append(command)
++            return NS(returncode=0)
++        with patch.object(search, '_is_pseudo_filesystem', return_value=False), \
++             patch.object(search.os.path, 'realpath', side_effect=lambda path, **kwargs: os.path.sep if path == 'root' else realpath(path, **kwargs)), \
++             patch.object(search.tempfile, 'TemporaryDirectory', side_effect=owned_temporary), \
++             patch.object(search.shutil, 'which', return_value='synthetic-rg'), \
++             patch.object(search.subprocess, 'run', side_effect=run):
++            with search.matching_files('needle', 'root', False) as matcher:
++                self.assertFalse(matcher('not-present'))
++        self.assertIn('--one-file-system', calls[0])
++        for glob in ('!dev/**', '!proc/**', '!sys/**'):
++            self.assertIn(glob, calls[0])
++
++
++if __name__ == '__main__':
++    unittest.main()
+diff --git a/.avx1/test_terminal.py b/.avx1/test_terminal.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..278e3e2543040ea4b2642cd782135539d88930fd
+--- /dev/null
++++ b/.avx1/test_terminal.py
+@@ -0,0 +1,85 @@
++"""Behavior tests for the fork's child-environment and MCP fixes."""
++import os
++import subprocess
++import sys
++import types
++import tempfile
++import json
++from pathlib import Path
++import unittest
++from unittest.mock import patch
++
++
++class TerminalTests(unittest.TestCase):
++    def test_child_cannot_read_inherited_terminal_credentials(self):
++        from open_terminal.env import sanitized_environ
++        environment = {**os.environ, "OPEN_TERMINAL_API_KEY": "synthetic-secret",
++                       "open_terminal_private": "synthetic-secret", "KEEP_APPLICATION_SETTING": "kept"}
++        with patch.dict(os.environ, environment, clear=True):
++            child_env = sanitized_environ({"EXTRA_SETTING": "extra"})
++        result = subprocess.run([sys.executable, "-c", "import os; assert not any(k.upper().startswith('OPEN_TERMINAL_') for k in os.environ); assert os.environ['KEEP_APPLICATION_SETTING']=='kept'; assert os.environ['EXTRA_SETTING']=='extra'"],
++                                env=child_env, capture_output=True)
++        self.assertEqual(result.returncode, 0)
++
++    def test_stdio_passes_no_network_arguments(self):
++        from click.testing import CliRunner
++        from open_terminal.cli import main
++        received = []
++        fake = types.ModuleType("open_terminal.mcp_server")
++        fake.mcp = types.SimpleNamespace(run=lambda **kwargs: received.append(kwargs))
++        with patch.dict(sys.modules, {"open_terminal.mcp_server": fake}), patch("open_terminal.config.init", return_value={}):
++            result = CliRunner().invoke(main, ["mcp", "--transport", "stdio"])
++        self.assertEqual(result.exit_code, 0, repr(result.exception))
++        self.assertEqual(received, [{"transport": "stdio"}])
++
++
++class SearchContextTests(unittest.TestCase):
++    def test_unicode_preview_keeps_text_and_trims_only_line_endings(self):
++        from open_terminal.utils.search_preview import bounded_match_content
++        self.assertEqual(bounded_match_content('коротко \t \r\n',0),'коротко \t ')
++        line='я'*1000+'needle '+'ь'*1000+'\r\r\n'
++        preview=bounded_match_content(line,1000)
++        self.assertIn('needle ',preview)
++        self.assertIn('of 2007]',preview)
++        self.assertNotIn('\r',preview)
++        self.assertLess(len(preview),400)
++
++    @classmethod
++    def setUpClass(cls):
++        # A fresh service instance uses only a synthetic credential and temporary files.
++        os.environ['OPEN_TERMINAL_API_KEY']='synthetic-context-test'
++        import importlib
++        import open_terminal.env
++        importlib.reload(open_terminal.env)
++        from open_terminal.main import app
++        from fastapi.testclient import TestClient
++        cls.client=TestClient(app)
++        cls.headers={'Authorization':'Bearer synthetic-context-test'}
++
++    def test_megabyte_match_stays_discoverable_and_cannot_flood_context(self):
++        with tempfile.TemporaryDirectory(prefix='terminal-context-') as folder:
++            path=Path(folder)/'data.json';line='a'*1000000+'needle'+'b'*1000000
++            path.write_text(line+'\n',encoding='utf-8')
++            response=self.client.get('/files/grep',params={'query':'needle','path':str(path)},headers=self.headers)
++            self.assertEqual(response.status_code,200,response.text[:200])
++            matches=response.json()['matches'];self.assertEqual(len(matches),1)
++            preview=matches[0]['content'];self.assertIn('needle',preview);self.assertIn('truncated',preview)
++            self.assertLess(len(preview),400);self.assertEqual(matches[0]['line'],1)
++            measurement={'input_chars':len(line),'preview_chars':len(preview),
++                'reduction_percent':100*(1-len(preview)/len(line)),
++                'scope':'Synthetic single-line grep preview content only; not runtime speed or LLM throughput'}
++            root=Path(__file__).resolve().parents[1];out=root/'.avx1-work/grep-preview-measurement.json';out.parent.mkdir(exist_ok=True)
++            out.write_text(json.dumps(measurement),encoding='utf-8')
++
++    def test_refactored_search_preserves_short_results_and_authentication(self):
++        with tempfile.TemporaryDirectory(prefix='terminal-context-') as folder:
++            path=Path(folder)/'source.txt';path.write_text('hello needle\n',encoding='utf-8')
++            params={'query':'needle','path':str(path)}
++            self.assertEqual(self.client.get('/files/grep',params=params).status_code,401)
++            response=self.client.get('/files/grep',params=params,headers=self.headers)
++            self.assertEqual(response.status_code,200)
++            self.assertEqual(response.json()['matches'][0]['content'],'hello needle')
++
++
++if __name__ == "__main__":
++    unittest.main()
+diff --git a/.avx1/test_terminal_mainstream.py b/.avx1/test_terminal_mainstream.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..3321182100513234e096eb9c9d2e8dc9a9a318ac
+--- /dev/null
++++ b/.avx1/test_terminal_mainstream.py
+@@ -0,0 +1,272 @@
++"""Isolated Terminal0.16 contracts; no browser, screen, audio or input is opened."""
++import ast
++import asyncio
++import io
++import json
++import os
++from pathlib import Path
++import struct
++import inspect
++import sys
++import tempfile
++from types import SimpleNamespace as NS
++import unittest
++from unittest.mock import AsyncMock, Mock, patch
++
++ROOT = Path(__file__).resolve().parents[1]
++sys.path.insert(0, str(ROOT))
++work = ROOT / '.avx1-work'
++work.mkdir(exist_ok=True)
++assert work.resolve().is_relative_to(ROOT.resolve())
++fixture = tempfile.TemporaryDirectory(prefix='mainstream-contract-', dir=work)
++FOLDER = Path(fixture.name)
++assert FOLDER.resolve().is_relative_to(work.resolve())
++environment = {k: v for k, v in os.environ.items() if not k.upper().startswith('OPEN_TERMINAL_')}
++environment.update(OPEN_TERMINAL_API_KEY='synthetic-mainstream', OPEN_TERMINAL_LOG_DIR=str(FOLDER / 'logs'),
++                   XDG_CONFIG_HOME=str(FOLDER), XDG_STATE_HOME=str(FOLDER))
++env_patch = patch.dict(os.environ, environment, clear=True)
++env_patch.start()
++from open_terminal import config
++config._SYSTEM_CONFIG_PATH = FOLDER / 'no-system-config.toml'
++config.init()
++from open_terminal import main, desktop
++from open_terminal.browser import router as browser
++from open_terminal.browser import chrome
++from open_terminal.frames import Frames
++from open_terminal.utils import port
++from open_terminal.utils.log import LogReader
++from open_terminal.dependencies import matches_api_key
++import httpx
++from fastapi import HTTPException
++from fastapi.testclient import TestClient
++from pydantic import ValidationError
++from PIL import Image
++from starlette.websockets import WebSocketDisconnect
++
++AUTH = {'Authorization': 'Bearer synthetic-mainstream', 'x-user-id': 'actor', 'x-session-id': 'chat'}
++
++
++class HttpAndSocket(unittest.TestCase):
++    def setUp(self):
++        self.client = TestClient(main.app)
++
++    def tearDown(self):
++        self.client.close()
++
++    def test_authenticated_health_requires_key_without_exposing_state_or_tools(self):
++        self.assertEqual(self.client.get('/api/health').status_code, 401)
++        self.assertEqual(self.client.get('/api/health', headers={'Authorization': 'Bearer wrong'}).status_code, 401)
++        response = self.client.get('/api/health', headers=AUTH)
++        self.assertEqual(response.status_code, 200)
++        self.assertEqual(response.json(), {'status': 'ok'})
++        self.assertNotIn('/api/health', self.client.get('/openapi.json').json()['paths'])
++
++    def test_private_browser_creation_requires_key(self):
++        before = set(browser.sessions)
++        response = self.client.post('/browser/sessions', json={'url': 'https://public.example'})
++        self.assertEqual(response.status_code, 401)
++        self.assertEqual(set(browser.sessions), before)
++
++    def test_browser_session_is_bound_to_actor_and_chat_without_starting_chrome(self):
++        with patch('open_terminal.browser.chrome.Chrome.create', new_callable=AsyncMock) as launch:
++            with TestClient(main.app) as client:
++                response = client.post('/browser/sessions', json={'url': 'https://public.example'}, headers=AUTH)
++                self.assertEqual(response.status_code, 200, response.text)
++                row = response.json()
++                for overrides in ({'x-user-id': 'other'}, {'x-session-id': 'other'}):
++                    self.assertEqual(client.get('/browser/sessions/' + row['id'], headers={**AUTH, **overrides}).status_code, 404)
++                self.assertEqual(client.get(f"/browser/view/{row['id']}/wrong/runtime.js").status_code, 404)
++                self.assertEqual(client.patch('/browser/sessions/' + row['id'], headers=AUTH, json={'chat_id': 'other'}).status_code, 409)
++                self.assertEqual(client.delete('/browser/sessions/' + row['id'], headers=AUTH).status_code, 200)
++                launch.assert_not_awaited()
++
++    def test_browser_rejects_non_http_and_credential_urls(self):
++        with TestClient(main.app) as client:
++            for value in ('javascript:alert(1)', 'file:///private', 'https://name:password@public.example/'):
++                with self.subTest(url=value):
++                    self.assertEqual(client.post('/browser/sessions', json={'url': value}, headers=AUTH).status_code, 400)
++
++    def test_desktop_unauthorized_or_invalid_action_never_captures(self):
++        capture = AsyncMock()
++        with patch.object(desktop, 'get_desktop', capture):
++            self.assertEqual(self.client.get('/desktop/screenshot').status_code, 401)
++            for payload in ({'actions': []}, {'actions': [{'action': 'click', 'x': -1, 'y': 0}]},
++                            {'actions': [{'action': 'key', 'key': 'a;shutdown'}]}):
++                self.assertEqual(self.client.post('/desktop/action', json=payload, headers=AUTH).status_code, 422)
++            capture.assert_not_awaited()
++
++    def test_authenticated_desktop_uses_only_injected_synthetic_screen(self):
++        image = io.BytesIO()
++        Image.new('RGB', (2, 2), 'white').save(image, 'PNG')
++        fake = NS(actions=asyncio.Lock(), screenshot=AsyncMock(return_value=image.getvalue()))
++        with patch.object(desktop, 'get_desktop', AsyncMock(return_value=fake)):
++            response = self.client.get('/desktop/screenshot', headers=AUTH)
++        self.assertEqual(response.status_code, 200)
++        self.assertEqual(response.content, image.getvalue())
++
++    def test_events_websocket_auth_and_subscription_dispatch(self):
++        calls = []
++        async def events(ws, fs, cwd, ports):
++            calls.append(ws.headers.get('x-user-id'))
++            await ws.send_json({'type': 'fixture'})
++            await ws.close()
++        with patch.object(main, 'system_events', events):
++            with self.client.websocket_connect('/events', headers=AUTH) as ws:
++                ws.send_json({'type': 'auth', 'token': 'wrong'})
++                with self.assertRaises(WebSocketDisconnect) as error:
++                    ws.receive_json()
++                self.assertEqual(error.exception.code, 4001)
++            self.assertEqual(calls, [])
++            with self.client.websocket_connect('/events', headers=AUTH) as ws:
++                ws.send_json({'type': 'auth', 'token': 'synthetic-mainstream'})
++                self.assertEqual(ws.receive_json(), {'type': 'fixture'})
++            self.assertEqual(calls, ['actor'])
++
++    def test_desktop_batch_stops_without_replaying_uncertain_action(self):
++        calls = []
++        def perform(body):
++            calls.append(body.text)
++            if len(calls) == 2:
++                raise OSError('synthetic uncertain operation')
++        fake = NS(actions=asyncio.Lock(), transport='frames', width=10, height=10,
++                  perform=perform, screenshot=AsyncMock())
++        with patch.object(desktop, 'get_desktop', AsyncMock(return_value=fake)):
++            response = self.client.post('/desktop/action', headers=AUTH,
++                json={'actions': [{'action': 'type', 'text': text} for text in ('one', 'two', 'three')]})
++        self.assertEqual(response.status_code, 502)
++        self.assertEqual(response.json()['detail']['completed_actions'], 1)
++        self.assertEqual(response.json()['detail']['failed_action_index'], 1)
++        self.assertEqual(calls, ['one', 'two'])
++        fake.screenshot.assert_not_awaited()
++
++    def test_process_websocket_keeps_actor_and_chat_ownership(self):
++        path = FOLDER / 'process.jsonl'
++        path.write_text(json.dumps({'type': 'stdout', 'data': 'synthetic output'}) + '\n', encoding='utf-8')
++        process = main.BackgroundProcess('fixture', 'synthetic', NS(), status='done', finished_at=10**12,
++                                         log_path=str(path), user_id='actor', session_id='chat')
++        with patch.dict(main._processes, {'fixture': process}, clear=True):
++            for overrides in ({'x-user-id': 'other'}, {'x-session-id': 'other'}):
++                with self.client.websocket_connect('/execute/fixture/status', headers={**AUTH, **overrides}) as ws:
++                    ws.send_json({'type': 'auth', 'token': 'synthetic-mainstream'})
++                    with self.assertRaises(WebSocketDisconnect) as error: ws.receive_json()
++                    self.assertEqual(error.exception.code, 4004)
++            with self.client.websocket_connect('/execute/fixture/status', headers=AUTH) as ws:
++                ws.send_json({'type': 'auth', 'token': 'synthetic-mainstream'})
++                output = ws.receive_json()
++                self.assertEqual(output['output'], [{'type': 'stdout', 'data': 'synthetic output'}])
++                self.assertEqual(output['next_offset'], 1)
++
++
++class LogsAndPorts(unittest.IsolatedAsyncioTestCase):
++    async def test_browser_proxy_never_forwards_terminal_identity_or_api_key(self):
++        captured = []
++        def transport(request):
++            captured.append(request)
++            return httpx.Response(200, text='synthetic remote body')
++        async with httpx.AsyncClient(transport=httpx.MockTransport(transport)) as client:
++            session = browser.Session('session', 'synthetic-capability', 'actor', 'chat', NS())
++            scope = {'type': 'http', 'method': 'GET', 'scheme': 'http', 'path': '/browser/view/session/token/frame/https/public.example/page',
++                     'query_string': b'', 'server': ('127.0.0.1', 1), 'headers': [
++                         (b'authorization', b'Bearer synthetic-terminal-key'), (b'cookie', b'token=synthetic-owner'),
++                         (b'x-user-id', b'actor'), (b'x-private', b'synthetic-private')], 'path_params': {}}
++            from fastapi import Request
++            with patch.dict(browser.sessions, {'session': session}, clear=True), patch.dict(browser.profiles, {'actor': client}, clear=True):
++                response = await browser.frame(Request(scope), 'session', 'synthetic-capability', 'https', 'public.example', 'page')
++                body = b''.join([chunk async for chunk in response.body_iterator])
++            self.assertEqual(body, b'synthetic remote body')
++            self.assertEqual(len(captured), 1)
++            for header in ('authorization', 'cookie', 'x-user-id', 'x-private'):
++                self.assertNotIn(header, captured[0].headers)
++
++    async def test_log_reader_waits_for_complete_unicode_record_and_keeps_cursor(self):
++        path = FOLDER / 'partial.jsonl'
++        encoded = (json.dumps({'type': 'stdout', 'data': 'строка'}, ensure_ascii=False) + '\n').encode()
++        path.write_bytes(encoded[:-3])
++        reader = LogReader(str(path))
++        self.assertEqual(await reader.read(), ([], 0, False))
++        with path.open('ab') as output: output.write(encoded[-3:])
++        self.assertEqual(await reader.read(), ([{'type': 'stdout', 'data': 'строка'}], 1, False))
++        self.assertEqual(await reader.read(), ([], 1, False))
++
++    async def test_log_reader_detects_rotation_and_absolute_offset(self):
++        path = FOLDER / 'rotation.jsonl'
++        path.write_text(json.dumps({'type': 'stdout', 'data': 'first'}) + '\n', encoding='utf-8')
++        reader = LogReader(str(path))
++        await reader.read()
++        replacement = FOLDER / 'replacement.jsonl'
++        replacement.write_text(json.dumps({'type': 'log_rotated', 'offset': 100}) + '\n' + json.dumps({'type': 'stdout', 'data': 'new'}) + '\n', encoding='utf-8')
++        replacement.replace(path)
++        self.assertEqual(await reader.read(), ([{'type': 'stdout', 'data': 'new'}], 101, True))
++
++    async def test_completed_failed_scanner_restarts_for_new_viewer(self):
++        old = asyncio.Queue()
++        done = asyncio.create_task(asyncio.sleep(0))
++        await done
++        previous = (port._subscribers, port._scanner, port._snapshot)
++        port._subscribers, port._scanner, port._snapshot = {old}, done, []
++        scanner = None
++        viewer = port.watch_listening_ports()
++        try:
++            with patch.object(port, 'run_io', AsyncMock(return_value=[{'port': 8123}])) as scan:
++                self.assertEqual(await anext(viewer), [])
++                self.assertEqual(await asyncio.wait_for(anext(viewer), 1), [{'port': 8123}])
++                scan.assert_awaited_once()
++                scanner = port._scanner
++        finally:
++            await viewer.aclose()
++            if scanner and not scanner.done():
++                scanner.cancel()
++                await asyncio.gather(scanner, return_exceptions=True)
++            port._subscribers, port._scanner, port._snapshot = previous
++
++
++class BinaryAndMcp(unittest.IsolatedAsyncioTestCase):
++    async def test_windows_debug_channel_is_loopback_without_proxy_or_server_credentials(self):
++        self.assertIn('proxy', inspect.signature(chrome.websockets.connect).parameters)
++        profile = FOLDER / 'synthetic-browser-profile'
++        process = NS(returncode=None, kill=Mock(), wait=AsyncMock())
++        async def spawn(*args, **kwargs):
++            (profile / 'DevToolsActivePort').write_text('8123\n/devtools/browser/synthetic\n', encoding='utf-8')
++            return process
++        connect = AsyncMock(return_value=object())
++        with patch.object(chrome.asyncio, 'create_subprocess_exec', side_effect=spawn) as create, \
++             patch.object(chrome.websockets, 'connect', connect), \
++             patch.object(chrome, 'Host', side_effect=lambda proc, **kw: NS(process=proc, **kw)):
++            host = await chrome.windows_host(['synthetic-chrome', f'--user-data-dir={profile}'], str(profile), str(FOLDER))
++        self.assertIs(host.process, process)
++        self.assertIsNone(connect.call_args.kwargs['proxy'])
++        self.assertEqual(connect.call_args.args[0], 'ws://127.0.0.1:8123/devtools/browser/synthetic')
++        self.assertIn('--remote-debugging-address=127.0.0.1', create.call_args.args)
++        self.assertNotIn('OPEN_TERMINAL_API_KEY', create.call_args.kwargs['env'])
++        process.kill.assert_not_called()
++
++    def test_frames_reuse_original_jpeg_and_send_bounded_pixel_delta(self):
++        image = Image.new('RGB', (4, 3), 'white')
++        frames = Frames()
++        first = frames.encode(image)
++        self.assertEqual(struct.unpack('!6H', first[:12]), (4, 3, 0, 0, 4, 3))
++        self.assertIsNone(frames.encode(image))
++        image.putpixel((1, 1), (0, 0, 0))
++        delta = frames.encode(image)
++        self.assertEqual(struct.unpack('!6H', delta[:12]), (4, 3, 1, 1, 1, 1))
++        output = io.BytesIO()
++        image.save(output, 'JPEG')
++        self.assertEqual(Frames().jpeg(output.getvalue())[12:], output.getvalue())
++
++    async def test_mcp_verifier_reuses_validated_constant_time_key_matcher(self):
++        tree = ast.parse((ROOT / 'open_terminal/mcp_server.py').read_text('utf-8'))
++        node = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == 'ApiKeyVerifier')
++        scope = {'TokenVerifier': object, 'AccessToken': NS, 'matches_api_key': matches_api_key}
++        exec(compile(ast.Module(body=[node], type_ignores=[]), 'mcp-verifier', 'exec'), scope)
++        verifier = scope['ApiKeyVerifier']()
++        for token in ('wrong', 'неверно', '\ud800', None):
++            self.assertIsNone(await verifier.verify_token(token))
++        self.assertEqual((await verifier.verify_token('synthetic-mainstream')).client_id, 'open-terminal')
++
++
++if __name__ == '__main__':
++    try:
++        unittest.main()
++    finally:
++        env_patch.stop()
++        fixture.cleanup()

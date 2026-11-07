@@ -1,0 +1,2439 @@
+diff --git a/.dockerignore b/.dockerignore
+index aee115961fb3c7536d4ed1a7c19cb5a9ffb9b47a..1c6dddb784789cd86bd8be43685bdd8321fc7b8b 100644
+--- a/.dockerignore
++++ b/.dockerignore
+@@ -1,11 +1,11 @@
+-__pycache__
+-*.egg-info
+-dist
+-build
+-.git
+-.gitignore
+-.github
+-*.pyc
+-.env
+-.venv
+-venv
++__pycache__
++*.egg-info
++dist
++build
++.git
++.gitignore
++.github
++*.pyc
++.env
++.venv
++venv
+diff --git a/.python-version b/.python-version
+index 2c0733315e415bfb5e5b353f9996ecd964d395b2..37504c53c604004f29d17be13adb2838b49c3bd3 100644
+--- a/.python-version
++++ b/.python-version
+@@ -1 +1 @@
+-3.11
++3.11
+diff --git a/LICENSE b/LICENSE
+index 16464a59e72f7b07c4f2ce3f6825ed101976ebdd..e554af0e0e71b2b3c222c18ae3821954ab2ae6b1 100644
+--- a/LICENSE
++++ b/LICENSE
+@@ -1,21 +1,21 @@
+-MIT License
+-
+-Copyright (c) 2026 Open WebUI Inc. (Timothy Jaeryang Baek)
+-
+-Permission is hereby granted, free of charge, to any person obtaining a copy
+-of this software and associated documentation files (the "Software"), to deal
+-in the Software without restriction, including without limitation the rights
+-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+-copies of the Software, and to permit persons to whom the Software is
+-furnished to do so, subject to the following conditions:
+-
+-The above copyright notice and this permission notice shall be included in all
+-copies or substantial portions of the Software.
+-
+-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+-SOFTWARE.
++MIT License
++
++Copyright (c) 2026 Open WebUI Inc. (Timothy Jaeryang Baek)
++
++Permission is hereby granted, free of charge, to any person obtaining a copy
++of this software and associated documentation files (the "Software"), to deal
++in the Software without restriction, including without limitation the rights
++to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++copies of the Software, and to permit persons to whom the Software is
++furnished to do so, subject to the following conditions:
++
++The above copyright notice and this permission notice shall be included in all
++copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
++SOFTWARE.
+diff --git a/dev.sh b/dev.sh
+index aec9132b5c81c5bc8d31f35975c0d5a3154b6b99..2e1f4b73ae065eb8a3b0822737a6ca820a4bdcf0 100755
+--- a/dev.sh
++++ b/dev.sh
+@@ -1,2 +1,2 @@
+-#!/usr/bin/env bash
+-uv run uvicorn open_terminal.main:app --reload
++#!/usr/bin/env bash
++uv run uvicorn open_terminal.main:app --reload
+diff --git a/entrypoint-openshift.sh b/entrypoint-openshift.sh
+index 5008b11834fb475eece51cf16d7e4071f15df96b..42f95788462619e7229d1a0fe19a6a8baa70a25a 100644
+--- a/entrypoint-openshift.sh
++++ b/entrypoint-openshift.sh
+@@ -1,61 +1,61 @@
+-#!/bin/sh
+-set -e
+-
+-file_env() {
+-    var="$1"
+-    file_var="${var}_FILE"
+-    default="${2:-}"
+-
+-    eval current_value="\${$var:-}"
+-    eval file_value="\${$file_var:-}"
+-    eval var_is_set="\${$var+set}"
+-    eval file_is_set="\${$file_var+set}"
+-
+-    if [ "$var_is_set" = "set" ] && [ "$file_is_set" = "set" ]; then
+-        printf >&2 'error: both %s and %s are set, but they are mutually exclusive\n' "$var" "$file_var"
+-        exit 1
+-    fi
+-
+-    value="$default"
+-    if [ -n "$current_value" ]; then
+-        value="$current_value"
+-    elif [ -n "$file_value" ]; then
+-        value="$(cat "$file_value")"
+-    fi
+-
+-    export "$var=$value"
+-    unset "$file_var"
+-}
+-
+-warn_unsupported() {
+-    var="$1"
+-    eval value="\${$var:-}"
+-    if [ -n "$value" ]; then
+-        printf >&2 'warning: %s is not supported by the OpenShift image and will be ignored\n' "$var"
+-        unset "$var"
+-    fi
+-}
+-
+-file_env OPEN_TERMINAL_API_KEY
+-
+-if [ "${OPEN_TERMINAL_MULTI_USER:-}" = "true" ] || [ "${OPEN_TERMINAL_MULTI_USER:-}" = "1" ]; then
+-    printf >&2 'error: OPEN_TERMINAL_MULTI_USER is not supported by the OpenShift image\n'
+-    exit 1
+-fi
+-
+-warn_unsupported OPEN_TERMINAL_ALLOWED_DOMAINS
+-warn_unsupported OPEN_TERMINAL_PACKAGES
+-warn_unsupported OPEN_TERMINAL_PIP_PACKAGES
+-warn_unsupported OPEN_TERMINAL_NPM_PACKAGES
+-
+-export HOME="${HOME:-/home/user}"
+-export SHELL="${SHELL:-/bin/bash}"
+-export USER="${USER:-user}"
+-export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+-export XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
+-export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
+-export PATH="$HOME/.local/bin:$PATH"
+-
+-mkdir -p "$HOME" "$HOME/.local/bin" "$XDG_CONFIG_HOME" "$XDG_STATE_HOME" "$XDG_CACHE_HOME" 2>/dev/null || true
+-
+-exec open-terminal "$@"
++#!/bin/sh
++set -e
++
++file_env() {
++    var="$1"
++    file_var="${var}_FILE"
++    default="${2:-}"
++
++    eval current_value="\${$var:-}"
++    eval file_value="\${$file_var:-}"
++    eval var_is_set="\${$var+set}"
++    eval file_is_set="\${$file_var+set}"
++
++    if [ "$var_is_set" = "set" ] && [ "$file_is_set" = "set" ]; then
++        printf >&2 'error: both %s and %s are set, but they are mutually exclusive\n' "$var" "$file_var"
++        exit 1
++    fi
++
++    value="$default"
++    if [ -n "$current_value" ]; then
++        value="$current_value"
++    elif [ -n "$file_value" ]; then
++        value="$(cat "$file_value")"
++    fi
++
++    export "$var=$value"
++    unset "$file_var"
++}
++
++warn_unsupported() {
++    var="$1"
++    eval value="\${$var:-}"
++    if [ -n "$value" ]; then
++        printf >&2 'warning: %s is not supported by the OpenShift image and will be ignored\n' "$var"
++        unset "$var"
++    fi
++}
++
++file_env OPEN_TERMINAL_API_KEY
++
++if [ "${OPEN_TERMINAL_MULTI_USER:-}" = "true" ] || [ "${OPEN_TERMINAL_MULTI_USER:-}" = "1" ]; then
++    printf >&2 'error: OPEN_TERMINAL_MULTI_USER is not supported by the OpenShift image\n'
++    exit 1
++fi
++
++warn_unsupported OPEN_TERMINAL_ALLOWED_DOMAINS
++warn_unsupported OPEN_TERMINAL_PACKAGES
++warn_unsupported OPEN_TERMINAL_PIP_PACKAGES
++warn_unsupported OPEN_TERMINAL_NPM_PACKAGES
++
++export HOME="${HOME:-/home/user}"
++export SHELL="${SHELL:-/bin/bash}"
++export USER="${USER:-user}"
++export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
++export XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
++export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
++export PATH="$HOME/.local/bin:$PATH"
++
++mkdir -p "$HOME" "$HOME/.local/bin" "$XDG_CONFIG_HOME" "$XDG_STATE_HOME" "$XDG_CACHE_HOME" 2>/dev/null || true
++
++exec open-terminal "$@"
+diff --git a/open_terminal/__init__.py b/open_terminal/__init__.py
+index 5925cdd9021a3a777c16467158a49b11c0f76ebb..fba8ad142067a9f859a458ae71b07176c2d21aff 100644
+--- a/open_terminal/__init__.py
++++ b/open_terminal/__init__.py
+@@ -1 +1 @@
+-"""open-terminal — a barebones terminal interaction API."""
++"""open-terminal — a barebones terminal interaction API."""
+diff --git a/open_terminal/__main__.py b/open_terminal/__main__.py
+index 56800279e4193666695b71ce81cf83f45a2f1647..15b1a52e2ced3077657e7a386d97294c63d70481 100644
+--- a/open_terminal/__main__.py
++++ b/open_terminal/__main__.py
+@@ -1,3 +1,3 @@
+-from open_terminal.cli import main
+-
+-main()
++from open_terminal.cli import main
++
++main()
+diff --git a/open_terminal/agents/discovery.py b/open_terminal/agents/discovery.py
+index 6b107c775d8c0f2d7a5c41179089246387750c90..3b785a75c4f468735a68d7bdd186f7f193a101ae 100644
+--- a/open_terminal/agents/discovery.py
++++ b/open_terminal/agents/discovery.py
+@@ -2,6 +2,7 @@
+ 
+ import asyncio
+ import json
++import os
+ import time
+ 
+ from fastapi import HTTPException, Request
+@@ -15,6 +16,8 @@ refreshes: dict[tuple, asyncio.Task] = {}
+ 
+ async def probe(provider, fs, cwd=None):
+     """Probe the installed CLI's native protocol as the terminal's OS user."""
++    if provider == "cline" and os.environ.get("OPEN_TERMINAL_ALLOW_CLINE_DISCOVERY", "").lower() != "true":
++        raise HTTPException(409, "Automatic Cline discovery is disabled to protect the existing profile; enable it only for an explicitly chosen Cline environment.")
+     process, cwd = await sessions.spawn(
+         provider, fs, sessions.Start(request_id="discovery", cwd=cwd)
+     )
+diff --git a/open_terminal/agents/sessions.py b/open_terminal/agents/sessions.py
+index 9bfc0168d3326ad401e48aa85c324f9eebd42c47..040f976b0d13b7b5d8507523e0b7f4b60f7ef88f 100644
+--- a/open_terminal/agents/sessions.py
++++ b/open_terminal/agents/sessions.py
+@@ -17,6 +17,7 @@ from fastapi import HTTPException, WebSocket
+ from pydantic import BaseModel, Field
+ 
+ from open_terminal.env import sanitized_environ
++from open_terminal.utils.git import git_environment
+ from . import codex, claude_code, cursor, grok, opencode, cline, gemini, pi
+ 
+ LIMIT = 16 * 1024 * 1024
+@@ -51,6 +52,7 @@ def identity(fs):
+     if fs.username:
+         import pwd
+ 
++        env = git_environment(fs)
+         account = pwd.getpwnam(fs.username)
+         home = account.pw_dir
+         # Never pass the server account's provider credentials to another OS user.
+diff --git a/open_terminal/browser/chrome.py b/open_terminal/browser/chrome.py
+index 608b55ab8a406fc38c9bdf04522967c16b6bd324..11422aea4f2805b44802b82e33abd5918a53cd34 100644
+--- a/open_terminal/browser/chrome.py
++++ b/open_terminal/browser/chrome.py
+@@ -269,6 +269,7 @@ async def windows_host(args, profile, home):
+                 if len(lines) == 2 and lines[1].startswith("/devtools/browser/"):
+                     channel = await websockets.connect(
+                         f"ws://127.0.0.1:{int(lines[0])}{lines[1]}",
++                        proxy=None,
+                         max_size=16 * 1024 * 1024,
+                     )
+                     return Host(process, channel=channel)
+diff --git a/open_terminal/cli.py b/open_terminal/cli.py
+index c7d6d7dc232aaf949dd2292a04495ebd4ab753bb..0d7ff36d74d73f4c2d4d951386f4e59bae67ff62 100644
+--- a/open_terminal/cli.py
++++ b/open_terminal/cli.py
+@@ -21,6 +21,37 @@ BANNER = r"""
+         |_|
+ """
+ 
++DEFAULT_CORS_ALLOWED_ORIGINS = "*"
++
++
++def resolve_cors_allowed_origins(cli_value: str | None, cfg: dict) -> str:
++    """Resolve the allowed CORS origins for ``open-terminal run``.
++
++    Precedence (highest wins):
++
++    1. ``--cors-allowed-origins`` CLI flag
++    2. ``OPEN_TERMINAL_CORS_ALLOWED_ORIGINS`` environment variable
++    3. ``cors_allowed_origins`` from the config file(s)
++    4. Built-in default (``"*"``)
++
++    Click resolves levels 1 and 2 into *cli_value*.  The option deliberately
++    has no Click-level default, so ``None`` means "not supplied" and any
++    explicit value -- including ``"*"`` or ``""`` -- is returned unchanged.
++    """
++    if cli_value is not None:
++        return cli_value
++
++    value = cfg.get("cors_allowed_origins")
++    if value is None:
++        return DEFAULT_CORS_ALLOWED_ORIGINS
++    if not isinstance(value, str):
++        raise click.BadParameter(
++            "expected a comma-separated string, got "
++            f"{type(value).__name__} {value!r}",
++            param_hint="'cors_allowed_origins' in config file",
++        )
++    return value
++
+ 
+ @main.command()
+ @click.option("--host", default=None, help="Bind host (default: 127.0.0.1 with --ipc or --cftunnel, otherwise 0.0.0.0)")
+@@ -47,9 +78,14 @@ BANNER = r"""
+ )
+ @click.option(
+     "--cors-allowed-origins",
+-    default="*",
++    # No Click default: a default here would always win over the config file.
++    default=None,
+     envvar="OPEN_TERMINAL_CORS_ALLOWED_ORIGINS",
+-    help="Allowed CORS origins, comma-separated (default: * for all)",
++    help=(
++        "Allowed CORS origins, comma-separated (or set "
++        "OPEN_TERMINAL_CORS_ALLOWED_ORIGINS; falls back to the config file, "
++        "then * for all)"
++    ),
+ )
+ @click.option(
+     "--cftunnel", is_flag=True,
+@@ -63,7 +99,7 @@ def run(
+     config_path: str | None,
+     cwd: str | None,
+     api_key: str,
+-    cors_allowed_origins: str,
++    cors_allowed_origins: str | None,
+     cftunnel: bool,
+     yes: bool,
+     isolated: bool,
+@@ -96,6 +132,9 @@ def run(
+     if cftunnel and (type(port) is not int or not 1 <= port <= 65535):
+         raise click.UsageError("--cftunnel requires a port between 1 and 65535.")
+ 
++    # Resolve CORS origins: CLI flag > env var > config file > built-in default
++    cors_allowed_origins = resolve_cors_allowed_origins(cors_allowed_origins, cfg)
++
+     if cwd:
+         os.chdir(cwd)
+ 
+@@ -214,12 +253,18 @@ def run(
+     default=None,
+     help="Working directory for the server process.",
+ )
++@click.option(
++    "--api-key",
++    default=None,
++    help="Bearer API key override (otherwise use environment, secret file or config).",
++)
+ def mcp(
+     transport: str,
+     host: str | None,
+     port: int | None,
+     config_path: str | None,
+     cwd: str | None,
++    api_key: str | None,
+ ):
+     """Start the MCP server (requires 'pip install open-terminal[mcp]')."""
+     from open_terminal import config
+@@ -232,6 +277,10 @@ def mcp(
+     if cwd:
+         os.chdir(cwd)
+ 
++    if api_key is not None:
++        os.environ["OPEN_TERMINAL_API_KEY"] = api_key
++        os.environ.pop("OPEN_TERMINAL_API_KEY_FILE", None)
++
+     try:
+         from open_terminal.mcp_server import mcp as mcp_server
+     except ImportError:
+@@ -242,7 +291,10 @@ def mcp(
+         )
+         raise SystemExit(1)
+ 
+-    mcp_server.run(transport=transport, host=host, port=port)
++    if transport == "stdio":
++        mcp_server.run(transport="stdio")
++    else:
++        mcp_server.run(transport=transport, host=host, port=port)
+ 
+ 
+ if __name__ == "__main__":
+diff --git a/open_terminal/env.py b/open_terminal/env.py
+index 085ef25ad0fb5f68bcde11fcf8524d6d0cf72e14..b396e36b7f26333801113a268330e451562592ff 100644
+--- a/open_terminal/env.py
++++ b/open_terminal/env.py
+@@ -5,7 +5,7 @@ from open_terminal import config
+ 
+ def sanitized_environ(extra: dict[str, str] | None = None) -> dict[str, str]:
+     """Exclude inherited server settings; explicit command overrides still win."""
+-    env = {key: value for key, value in os.environ.items() if not key.startswith("OPEN_TERMINAL_")}
++    env = {key: value for key, value in os.environ.items() if not key.upper().startswith("OPEN_TERMINAL_")}
+     if extra:
+         env.update(extra)
+     return env
+@@ -97,6 +97,10 @@ EXECUTE_DESCRIPTION = os.environ.get(
+     config.get("execute_description", ""),
+ )
+ 
++# Delivery-aware result retention (PR150); unknown outcomes remain recoverable.
++PROCESS_EXPIRY = float(os.environ.get("OPEN_TERMINAL_PROCESS_EXPIRY", config.get("process_expiry", 300)))
++PROCESS_UNDELIVERED_EXPIRY = float(os.environ.get("OPEN_TERMINAL_PROCESS_UNDELIVERED_EXPIRY", config.get("process_undelivered_expiry", 1800)))
++
+ # Maximum size (in bytes) for per-process JSONL log files.
+ # Once exceeded, the oldest portion is removed on disk; output capture continues.
+ MAX_PROCESS_LOG_SIZE = int(
+diff --git a/open_terminal/main.py b/open_terminal/main.py
+index d01ce6b57effd35e58d349265aae5713e03d2777..34fbf48775fbf5d987bb21410eb68159d4d752eb 100644
+--- a/open_terminal/main.py
++++ b/open_terminal/main.py
+@@ -28,13 +28,15 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request, UploadFile,
+ from fastapi.exceptions import RequestValidationError
+ from open_terminal.browser.router import BrowserCORSMiddleware
+ from fastapi.responses import JSONResponse, StreamingResponse
++from starlette.background import BackgroundTask
+ from starlette.formparsers import MultiPartParser, MultiPartException, parse_options_header
+ from pydantic import BaseModel, Field, TypeAdapter, ValidationError
+ 
+ from open_terminal.agents import discovery as agent_discovery, sessions as agent_sessions
+ from open_terminal.agents.router import router as agent_router
+ from open_terminal.dependencies import get_filesystem, matches_api_key, verify_api_key
+-from open_terminal.env import API_KEY, BINARY_FILE_MIME_PREFIXES, CORS_ALLOWED_ORIGINS, ENABLE_BROWSER, ENABLE_DESKTOP, ENABLE_NOTEBOOKS, ENABLE_SYSTEM_PROMPT, ENABLE_TERMINAL, EXECUTE_DESCRIPTION, EXECUTE_TIMEOUT, FILE_BROWSER_ROOT, LOG_DIR, MAX_TERMINAL_SESSIONS, MULTI_USER, OPEN_TERMINAL_INFO, PROCESS_LOG_RETENTION, SESSION_CWD_TTL, SYSTEM_PROMPT, TERMINAL_TERM
++from open_terminal.env import API_KEY, BINARY_FILE_MIME_PREFIXES, CORS_ALLOWED_ORIGINS, ENABLE_BROWSER, ENABLE_DESKTOP, ENABLE_NOTEBOOKS, ENABLE_SYSTEM_PROMPT, ENABLE_TERMINAL, EXECUTE_DESCRIPTION, EXECUTE_TIMEOUT, FILE_BROWSER_ROOT, LOG_DIR, MAX_TERMINAL_SESSIONS, MULTI_USER, OPEN_TERMINAL_INFO, PROCESS_LOG_RETENTION, PROCESS_EXPIRY, PROCESS_UNDELIVERED_EXPIRY, SESSION_CWD_TTL, SYSTEM_PROMPT, TERMINAL_TERM
++from open_terminal.utils.search_preview import MAX_MATCH_CONTENT, bounded_match_content
+ from open_terminal.env import sanitized_environ
+ from open_terminal.utils.runner import PipeRunner, ProcessRunner, create_runner, read_pty, write_pty, PtyRunner
+ from open_terminal.utils.fs import UserFS, FullFileResponse as FileResponse, TemporaryFileResponse, text_file_response, line_range_offsets
+@@ -42,7 +44,7 @@ from open_terminal.utils.limits import (CHUNK_SIZE, NormalizeNullQueryMiddleware
+ from open_terminal.utils.file_compare import CompareRequest, run_comparison
+ from open_terminal.utils.git import GitRepository
+ from open_terminal.utils.events import system_events
+-from open_terminal.utils.search import search_entries, matching_files, ranked_page
++from open_terminal.utils.search import is_regular_file, search_entries, matching_files, ranked_page
+ from open_terminal.utils.skills import join_skill_path, list_skill_resources, parse_skill_frontmatter
+ 
+ MATCH_PAGE_SIZE = 100
+@@ -362,6 +364,7 @@ class BackgroundProcess:
+     log_task: Optional[asyncio.Task] = field(default=None, repr=False)
+     input_lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
+     finished_at: Optional[float] = field(default=None, repr=False)
++    delivered_at: Optional[float] = field(default=None, repr=False)
+     log_path: Optional[str] = field(default=None, repr=False)
+     user_id: str = ""
+     session_id: str = ""
+@@ -382,7 +385,6 @@ def _notify_process_list():
+     changed.set()
+ 
+ 
+-_EXPIRY_SECONDS = 300  # auto-clean finished processes after 5 min
+ 
+ 
+ # ---------------------------------------------------------------------------
+@@ -426,11 +428,26 @@ from open_terminal.utils.log import LogReader, log_process, log_response
+ 
+ 
+ 
++async def _process_log_response(process, metadata, offset=0, tail=None):
++    response = await log_response(process.log_path, metadata, offset=offset, tail=tail)
++    if metadata["status"] != "running":
++        cleanup = response.background
++        async def delivered():
++            if process.delivered_at is None:
++                process.delivered_at = time.time()
++            if cleanup:
++                await cleanup()
++        response.background = BackgroundTask(delivered)
++    return response
++
++
+ def _cleanup_expired():
+     now = time.time()
+     finished = [p for p in _processes.values() if p.finished_at is not None]
+     for process in finished:
+-        if now - process.finished_at > _EXPIRY_SECONDS:
++        start = process.delivered_at if process.delivered_at is not None else process.finished_at
++        expiry = PROCESS_EXPIRY if process.delivered_at is not None else PROCESS_UNDELIVERED_EXPIRY
++        if now - start > expiry:
+             _processes.pop(process.id, None)
+             _notify_process_list()
+ 
+@@ -461,7 +478,7 @@ async def _maintenance_loop():
+                 if (not _session_is_alive(session) or
+                     (not session["connected"] and time.monotonic() - session.get("detached_at", time.monotonic()) > 300)):
+                     await _cleanup_session(sid)
+-        active = {p.log_path for p in _processes.values() if p.finished_at is None}
++        active = {p.log_path for p in _processes.values()}
+         try:
+             await run_io(_cleanup_log_files, active)
+         except OSError as exc:
+@@ -496,6 +513,12 @@ async def health():
+     return {"status": "ok"}
+ 
+ 
++@app.get("/api/health", dependencies=[Depends(verify_api_key)], include_in_schema=False)
++async def authenticated_health():
++    """Side-effect-free credential check for independently managed clients."""
++    return {"status": "ok"}
++
++
+ # ---------------------------------------------------------------------------
+ # Config (capability discovery)
+ # ---------------------------------------------------------------------------
+@@ -1195,13 +1218,13 @@ async def grep_search(
+             try:
+                 with open(file_path, "r", encoding="utf-8", errors="strict") as f:
+                     for line_number, line in enumerate(f, 1):
+-                        if pattern.search(line):
++                        if match := pattern.search(line):
+                             if match_per_line:
+                                 matches.append(
+                                     {
+                                         "file": file_path,
+                                         "line": line_number,
+-                                        "content": line.rstrip("\n\r"),
++                                        "content": bounded_match_content(line, match.start()),
+                                     }
+                                 )
+                                 if len(matches) >= max_results:
+@@ -1249,7 +1272,7 @@ async def grep_search(
+     "/files/matches",
+     operation_id="match_files",
+     summary="Search files by name and contents",
+-    description="Search files and directories by ranked name, path, and content matches.",
++    description="Search files and directories by ranked name, path, and content matches. Content matches use bounded previews with original UTF-16 columns and excerpt_truncated for long lines. Files above 1 MiB are not content-searched; filename matches remain available.",
+     dependencies=[Depends(verify_api_key)],
+     responses={
+         400: {"description": "Blank query."},
+@@ -1283,6 +1306,8 @@ async def match_files(
+ 
+     def _matches_sync():
+         query_lower = query.lower()
++        # Case folding can change length; positions must refer to original text.
++        query_pattern = re.compile(re.escape(query), re.IGNORECASE)
+ 
+         def content_lines(path):
+             with open(path, encoding="utf-8", errors="replace", newline="\n" if rg_matches is not None else None) as source:
+@@ -1303,17 +1328,22 @@ async def match_files(
+                 score = (0 if name_lower == query_lower else 1 if name_lower.startswith(query_lower)
+                     else 2 if query_lower in name_lower else 3 if query_lower in rel_lower else 4)
+                 content_matches = []
+-                if entry_type == "file" and not os.path.islink(entry_path):
++                if entry_type == "file" and not os.path.islink(entry_path) and is_regular_file(entry_path):
+                     try:
+                         size = os.path.getsize(entry_path)
+-                        eligible = rg_matches(entry_path) if rg_matches is not None else size <= MAX_CONTENT_SEARCH_FILE_SIZE
++                        eligible = size <= MAX_CONTENT_SEARCH_FILE_SIZE and (rg_matches is None or rg_matches(entry_path))
+                         if eligible:
+                             with open(entry_path, "rb") as source:
+                                 binary = rg_matches is None and b"\0" in source.read(8192)
+                             for number, text in (() if binary else content_lines(entry_path)):
+-                                index = text.lower().find(query_lower)
+-                                if index >= 0:
+-                                    content_matches.append({"line": number, "column": len(text[:index].encode("utf-16-le")) // 2 + 1, "text": text.rstrip("\r\n")})
++                                found = query_pattern.search(text)
++                                if found:
++                                    index = found.start()
++                                    match = {"line": number, "column": len(text[:index].encode("utf-16-le")) // 2 + 1,
++                                             "text": bounded_match_content(text, index)}
++                                    if len(text.rstrip("\r\n")) > MAX_MATCH_CONTENT:
++                                        match["excerpt_truncated"] = True
++                                    content_matches.append(match)
+                                     if len(content_matches) >= MAX_CONTENT_MATCHES_PER_FILE:
+                                         break
+                     except (OSError, UnicodeError):
+@@ -1816,7 +1846,7 @@ async def execute(
+         except asyncio.TimeoutError:
+             pass
+ 
+-    return await log_response(background_process.log_path, {
++    return await _process_log_response(background_process, {
+         "id": process_id,
+         "command": request.command,
+         "cwd": cwd,
+@@ -1869,7 +1899,7 @@ async def get_status(
+         except asyncio.TimeoutError:
+             pass
+ 
+-    return await log_response(background_process.log_path, {
++    return await _process_log_response(background_process, {
+         "id": background_process.id,
+         "command": background_process.command,
+         "status": background_process.status,
+diff --git a/open_terminal/mcp_server.py b/open_terminal/mcp_server.py
+index 7a691f65b8eef15c1ea202dcbe1f222636bf80c7..2c32ed264fb612d357da3e26109e4b441d521e33 100644
+--- a/open_terminal/mcp_server.py
++++ b/open_terminal/mcp_server.py
+@@ -1,18 +1,17 @@
+ """MCP server — exposes every FastAPI endpoint as an MCP tool."""
+ 
+-import hmac
+-
+ from fastmcp import FastMCP
+ from fastmcp.server.auth import AccessToken, TokenVerifier
+ from open_terminal.main import app
+ from open_terminal.env import API_KEY
++from open_terminal.dependencies import matches_api_key
+ 
+ 
+ class ApiKeyVerifier(TokenVerifier):
+     """Accept a client bearer token only when it matches the API key."""
+ 
+     async def verify_token(self, token: str) -> AccessToken | None:
+-        if not hmac.compare_digest(token, API_KEY):
++        if not matches_api_key(token):
+             return None
+         return AccessToken(token=token, client_id="open-terminal", scopes=[])
+ 
+diff --git a/open_terminal/utils/documents.py b/open_terminal/utils/documents.py
+index ac6c1c705de15e4646bf0911783cb1019b8ba893..e9c7939118fdfb5c5bcfe8745e62fb15c238a154 100644
+--- a/open_terminal/utils/documents.py
++++ b/open_terminal/utils/documents.py
+@@ -1,326 +1,326 @@
+-"""Document text extraction utilities.
+-
+-Extracts readable text from binary document formats so LLMs can
+-consume their content.  Each ``extract_*`` function takes a file path
+-and returns the document's text as a plain string.
+-
+-All libraries used are permissively licensed (MIT / BSD).
+-"""
+-
+-import zipfile
+-from functools import wraps
+-
+-
+-def text_extractor(separator="\n"):
+-    def decorate(function):
+-        @wraps(function)
+-        def extract(*args, **kwargs):
+-            return separator.join(function(*args, **kwargs))
+-
+-        def write_to(path, output, **kwargs):
+-            first = True
+-            for part in function(path, **kwargs):
+-                if not first:
+-                    output.write(separator)
+-                output.write(part)
+-                first = False
+-        extract.write_to = write_to
+-        return extract
+-    return decorate
+-
+-
+-@text_extractor()
+-def extract_pdf(file_path: str, strict: bool = False) -> str:
+-    """Extract PDF pages without retaining every page's text."""
+-    from pypdf import PdfReader
+-
+-    reader = PdfReader(file_path)
+-    if strict and reader.is_encrypted:
+-        raise ValueError("Encrypted PDF. Provide an unencrypted copy.")
+-    missing = []
+-    for index, page in enumerate(reader.pages, 1):
+-        text = page.extract_text() or ""
+-        if strict and not text.strip():
+-            missing.append(str(index))
+-        yield text
+-    if missing:
+-        raise ValueError(f"No extractable text on PDF pages {', '.join(missing)}. OCR is required before comparison.")
+-
+-
+-@text_extractor()
+-def extract_docx(file_path: str) -> str:
+-    """Extract current paragraph/table text, including tracked insertions, without saving."""
+-    from docx import Document as DocxDocument
+-    from docx.table import Table
+-    from docx.text.paragraph import Paragraph
+-
+-    from docx.oxml.ns import qn
+-    from lxml import etree
+-
+-    doc = DocxDocument(file_path)
+-    body = doc.element.body
+-    # Ignore historical properties before finding revisions in the current text.
+-    for node in list(body.iter()):
+-        if isinstance(node.tag, str) and node.tag.startswith(qn("w:")) and node.tag.endswith("Change"):
+-            node.getparent().remove(node)
+-    for node in body.xpath(".//w:tr[w:trPr/w:del] | .//w:tc[w:tcPr/w:cellDel]"):
+-        node.getparent().remove(node)
+-    joined_paragraphs = body.xpath(".//w:p[w:pPr/w:rPr/w:del]")
+-    etree.strip_elements(body, qn("w:del"), qn("w:moveFrom"), with_tail=False)
+-    etree.strip_tags(body, qn("w:ins"), qn("w:moveTo"))
+-    # A deleted paragraph mark joins its text to the following paragraph.
+-    for paragraph in reversed(joined_paragraphs):
+-        following = paragraph.getnext()
+-        if following is not None and following.tag == qn("w:p"):
+-            for child in list(following):
+-                if child.tag != qn("w:pPr"):
+-                    paragraph.append(child)
+-            following.getparent().remove(following)
+-
+-    for child in doc.element.body:
+-        if child.tag.endswith("}p"):
+-            yield (Paragraph(child, doc).text)
+-        elif child.tag.endswith("}tbl"):
+-            for row in Table(child, doc).rows:
+-                yield ("\t".join(cell.text for cell in row.cells))
+-
+-
+-
+-@text_extractor()
+-def extract_xlsx(file_path: str) -> str:
+-    """Extract spreadsheet rows incrementally, including sparse cell ranges."""
+-    from openpyxl import load_workbook
+-
+-    workbook = load_workbook(file_path, read_only=True, data_only=True)
+-    try:
+-        for sheet in workbook.worksheets:
+-            yield f"--- {sheet.title} ---"
+-            for row in sheet.iter_rows(values_only=True):
+-                yield "\t".join(str(cell) if cell is not None else "" for cell in row)
+-    finally:
+-        workbook.close()
+-
+-
+-@text_extractor()
+-def extract_pptx(file_path: str) -> str:
+-    """Extract text from a PowerPoint (.pptx) file."""
+-    from pptx import Presentation
+-
+-    prs = Presentation(file_path)
+-
+-    for i, slide in enumerate(prs.slides, 1):
+-        yield (f"--- Slide {i} ---")
+-        for shape in slide.shapes:
+-            if shape.has_text_frame:
+-                yield (shape.text_frame.text)
+-
+-
+-
+-def extract_rtf(file_path: str) -> str:
+-    """Extract text from a Rich Text Format (.rtf) file."""
+-    from striprtf.striprtf import rtf_to_text
+-
+-    with open(file_path, "rb") as f:
+-        raw = f.read()
+-    return rtf_to_text(raw.decode("utf-8", errors="replace"))
+-
+-
+-@text_extractor()
+-def extract_xls(file_path: str) -> str:
+-    """Extract text from a legacy Excel (.xls) file."""
+-    import xlrd
+-
+-    wb = xlrd.open_workbook(file_path)
+-
+-    for sheet in wb.sheets():
+-        yield (f"--- {sheet.name} ---")
+-        for row_idx in range(sheet.nrows):
+-            yield ("\t".join(
+-                str(sheet.cell_value(row_idx, col_idx))
+-                for col_idx in range(sheet.ncols)
+-            ))
+-
+-
+-
+-def extract_odt(file_path: str) -> str:
+-    """Extract text from an OpenDocument Text (.odt) file."""
+-    from lxml import etree
+-
+-    with zipfile.ZipFile(file_path) as zf:
+-        with zf.open("content.xml") as f:
+-            tree = etree.parse(f)
+-    ns = "urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+-    return "\n".join(
+-        "".join(p.itertext())
+-        for p in tree.iter(f"{{{ns}}}p")
+-    )
+-
+-
+-@text_extractor()
+-def extract_ods(file_path: str) -> str:
+-    """Extract text from an OpenDocument Spreadsheet (.ods) file."""
+-    from lxml import etree
+-
+-    with zipfile.ZipFile(file_path) as zf:
+-        with zf.open("content.xml") as f:
+-            tree = etree.parse(f)
+-    ns_table = "urn:oasis:names:tc:opendocument:xmlns:table:1.0"
+-    ns_text = "urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+-
+-    for table in tree.iter(f"{{{ns_table}}}table"):
+-        name = table.get(f"{{{ns_table}}}name", "Sheet")
+-        yield (f"--- {name} ---")
+-        for row in table.iter(f"{{{ns_table}}}table-row"):
+-            cells = []
+-            for cell in row.iter(f"{{{ns_table}}}table-cell"):
+-                cell_text = " ".join(
+-                    "".join(p.itertext())
+-                    for p in cell.iter(f"{{{ns_text}}}p")
+-                )
+-                cells.append(cell_text)
+-            yield ("\t".join(cells))
+-
+-
+-
+-@text_extractor()
+-def extract_odp(file_path: str) -> str:
+-    """Extract text from an OpenDocument Presentation (.odp) file."""
+-    from lxml import etree
+-
+-    with zipfile.ZipFile(file_path) as zf:
+-        with zf.open("content.xml") as f:
+-            tree = etree.parse(f)
+-    ns_draw = "urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"
+-    ns_text = "urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+-
+-    for i, page in enumerate(tree.iter(f"{{{ns_draw}}}page"), 1):
+-        yield (f"--- Slide {i} ---")
+-        for p in page.iter(f"{{{ns_text}}}p"):
+-            text = "".join(p.itertext()).strip()
+-            if text:
+-                yield (text)
+-
+-
+-
+-@text_extractor("\n\n")
+-def extract_epub(file_path: str, strict: bool = False) -> str:
+-    """Extract text from an EPUB e-book."""
+-    from lxml import etree
+-
+-
+-    with zipfile.ZipFile(file_path) as zf:
+-        # Parse the container to find the root file
+-        with zf.open("META-INF/container.xml") as cf:
+-            container = etree.parse(cf)
+-        ns_container = "urn:oasis:names:tc:opendocument:xmlns:container"
+-        rootfile = container.find(f".//{{{ns_container}}}rootfile")
+-        if rootfile is None:
+-            rootfile = container.xpath("//*[local-name()='rootfile']")
+-            rootfile = rootfile[0] if rootfile else None
+-
+-        if rootfile is not None:
+-            opf_path = rootfile.get("full-path", "")
+-            opf_dir = opf_path.rsplit("/", 1)[0] + "/" if "/" in opf_path else ""
+-            with zf.open(opf_path) as opf_file:
+-                opf = etree.parse(opf_file)
+-            spine_ids = [
+-                item.get("idref")
+-                for item in opf.xpath("//*[local-name()='itemref']")
+-            ]
+-            manifest = {
+-                item.get("id"): item.get("href")
+-                for item in opf.xpath("//*[local-name()='item']")
+-            }
+-            for idref in spine_ids:
+-                href = manifest.get(idref, "")
+-                item_path = opf_dir + href if not href.startswith("/") else href.lstrip("/")
+-                try:
+-                    with zf.open(item_path) as html_file:
+-                        html_tree = etree.parse(html_file, etree.HTMLParser())
+-                        body = html_tree.find(".//body")
+-                        if body is not None:
+-                            text = "".join(body.itertext())
+-                            yield (text.strip())
+-                except (KeyError, etree.XMLSyntaxError):
+-                    if strict:
+-                        raise ValueError(f"Could not extract EPUB chapter: {item_path}")
+-                    continue
+-        else:
+-            for name in zf.namelist():
+-                if name.endswith((".html", ".xhtml", ".htm")):
+-                    try:
+-                        with zf.open(name) as html_file:
+-                            html_tree = etree.parse(html_file, etree.HTMLParser())
+-                            body = html_tree.find(".//body")
+-                            if body is not None:
+-                                text = "".join(body.itertext())
+-                                yield (text.strip())
+-                    except etree.XMLSyntaxError:
+-                        if strict:
+-                            raise ValueError(f"Could not extract EPUB chapter: {name}")
+-                        continue
+-
+-
+-
+-@text_extractor()
+-def extract_eml(file_path: str) -> str:
+-    """Extract text from an email message (.eml)."""
+-    import email
+-    from email import policy
+-
+-    with open(file_path, "rb") as f:
+-        msg = email.message_from_binary_file(f, policy=policy.default)
+-
+-    for header in ("From", "To", "Cc", "Date", "Subject"):
+-        val = msg.get(header)
+-        if val:
+-            yield (f"{header}: {val}")
+-    yield ("")  # blank line after headers
+-    body = msg.get_body(preferencelist=("plain", "html"))
+-    if body:
+-        content = body.get_content()
+-        if body.get_content_type() == "text/html":
+-            from lxml import etree
+-            tree = etree.HTML(content)
+-            content = "".join(tree.itertext()) if tree is not None else content
+-        yield (content)
+-
+-
+-
+-# MIME type / extension → extractor mapping.
+-# Checked in order by read_file; the first match wins.
+-# Each entry: (mime_type_or_None, file_extension_or_None, extractor)
+-EXTRACTORS: list[tuple[str | None, str | None, callable]] = [
+-    ("application/pdf", None, extract_pdf),
+-    ("application/vnd.openxmlformats-officedocument.wordprocessingml.document", None, extract_docx),
+-    ("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", None, extract_xlsx),
+-    ("application/vnd.openxmlformats-officedocument.presentationml.presentation", None, extract_pptx),
+-    ("application/rtf", ".rtf", extract_rtf),
+-    ("application/vnd.ms-excel", ".xls", extract_xls),
+-    ("application/vnd.oasis.opendocument.text", ".odt", extract_odt),
+-    ("application/vnd.oasis.opendocument.spreadsheet", ".ods", extract_ods),
+-    ("application/vnd.oasis.opendocument.presentation", ".odp", extract_odp),
+-    ("application/epub+zip", ".epub", extract_epub),
+-    ("message/rfc822", ".eml", extract_eml),
+-]
+-
+-
+-if __name__ == "__main__":
+-    import json
+-    import mimetypes
+-    import sys
+-
+-    try:
+-        payload = json.load(sys.stdin)
+-        path = payload["path"]
+-        mime = mimetypes.guess_type(path)[0]
+-        extractor = next(fn for kind, suffix, fn in EXTRACTORS if kind and kind == mime or suffix and path.lower().endswith(suffix))
+-        with open(payload["output"], "w", encoding="utf-8", newline="") as output:
+-            if hasattr(extractor, "write_to"):
+-                extractor.write_to(path, output)
+-            else:
+-                output.write(extractor(path))
+-        result = {}
+-    except Exception as exc:
+-        result = {"error": str(exc), "error_type": type(exc).__name__}
+-    json.dump(result, sys.stdout)
++"""Document text extraction utilities.
++
++Extracts readable text from binary document formats so LLMs can
++consume their content.  Each ``extract_*`` function takes a file path
++and returns the document's text as a plain string.
++
++All libraries used are permissively licensed (MIT / BSD).
++"""
++
++import zipfile
++from functools import wraps
++
++
++def text_extractor(separator="\n"):
++    def decorate(function):
++        @wraps(function)
++        def extract(*args, **kwargs):
++            return separator.join(function(*args, **kwargs))
++
++        def write_to(path, output, **kwargs):
++            first = True
++            for part in function(path, **kwargs):
++                if not first:
++                    output.write(separator)
++                output.write(part)
++                first = False
++        extract.write_to = write_to
++        return extract
++    return decorate
++
++
++@text_extractor()
++def extract_pdf(file_path: str, strict: bool = False) -> str:
++    """Extract PDF pages without retaining every page's text."""
++    from pypdf import PdfReader
++
++    reader = PdfReader(file_path)
++    if strict and reader.is_encrypted:
++        raise ValueError("Encrypted PDF. Provide an unencrypted copy.")
++    missing = []
++    for index, page in enumerate(reader.pages, 1):
++        text = page.extract_text() or ""
++        if strict and not text.strip():
++            missing.append(str(index))
++        yield text
++    if missing:
++        raise ValueError(f"No extractable text on PDF pages {', '.join(missing)}. OCR is required before comparison.")
++
++
++@text_extractor()
++def extract_docx(file_path: str) -> str:
++    """Extract current paragraph/table text, including tracked insertions, without saving."""
++    from docx import Document as DocxDocument
++    from docx.table import Table
++    from docx.text.paragraph import Paragraph
++
++    from docx.oxml.ns import qn
++    from lxml import etree
++
++    doc = DocxDocument(file_path)
++    body = doc.element.body
++    # Ignore historical properties before finding revisions in the current text.
++    for node in list(body.iter()):
++        if isinstance(node.tag, str) and node.tag.startswith(qn("w:")) and node.tag.endswith("Change"):
++            node.getparent().remove(node)
++    for node in body.xpath(".//w:tr[w:trPr/w:del] | .//w:tc[w:tcPr/w:cellDel]"):
++        node.getparent().remove(node)
++    joined_paragraphs = body.xpath(".//w:p[w:pPr/w:rPr/w:del]")
++    etree.strip_elements(body, qn("w:del"), qn("w:moveFrom"), with_tail=False)
++    etree.strip_tags(body, qn("w:ins"), qn("w:moveTo"))
++    # A deleted paragraph mark joins its text to the following paragraph.
++    for paragraph in reversed(joined_paragraphs):
++        following = paragraph.getnext()
++        if following is not None and following.tag == qn("w:p"):
++            for child in list(following):
++                if child.tag != qn("w:pPr"):
++                    paragraph.append(child)
++            following.getparent().remove(following)
++
++    for child in doc.element.body:
++        if child.tag.endswith("}p"):
++            yield (Paragraph(child, doc).text)
++        elif child.tag.endswith("}tbl"):
++            for row in Table(child, doc).rows:
++                yield ("\t".join(cell.text for cell in row.cells))
++
++
++
++@text_extractor()
++def extract_xlsx(file_path: str) -> str:
++    """Extract spreadsheet rows incrementally, including sparse cell ranges."""
++    from openpyxl import load_workbook
++
++    workbook = load_workbook(file_path, read_only=True, data_only=True)
++    try:
++        for sheet in workbook.worksheets:
++            yield f"--- {sheet.title} ---"
++            for row in sheet.iter_rows(values_only=True):
++                yield "\t".join(str(cell) if cell is not None else "" for cell in row)
++    finally:
++        workbook.close()
++
++
++@text_extractor()
++def extract_pptx(file_path: str) -> str:
++    """Extract text from a PowerPoint (.pptx) file."""
++    from pptx import Presentation
++
++    prs = Presentation(file_path)
++
++    for i, slide in enumerate(prs.slides, 1):
++        yield (f"--- Slide {i} ---")
++        for shape in slide.shapes:
++            if shape.has_text_frame:
++                yield (shape.text_frame.text)
++
++
++
++def extract_rtf(file_path: str) -> str:
++    """Extract text from a Rich Text Format (.rtf) file."""
++    from striprtf.striprtf import rtf_to_text
++
++    with open(file_path, "rb") as f:
++        raw = f.read()
++    return rtf_to_text(raw.decode("utf-8", errors="replace"))
++
++
++@text_extractor()
++def extract_xls(file_path: str) -> str:
++    """Extract text from a legacy Excel (.xls) file."""
++    import xlrd
++
++    wb = xlrd.open_workbook(file_path)
++
++    for sheet in wb.sheets():
++        yield (f"--- {sheet.name} ---")
++        for row_idx in range(sheet.nrows):
++            yield ("\t".join(
++                str(sheet.cell_value(row_idx, col_idx))
++                for col_idx in range(sheet.ncols)
++            ))
++
++
++
++def extract_odt(file_path: str) -> str:
++    """Extract text from an OpenDocument Text (.odt) file."""
++    from lxml import etree
++
++    with zipfile.ZipFile(file_path) as zf:
++        with zf.open("content.xml") as f:
++            tree = etree.parse(f)
++    ns = "urn:oasis:names:tc:opendocument:xmlns:text:1.0"
++    return "\n".join(
++        "".join(p.itertext())
++        for p in tree.iter(f"{{{ns}}}p")
++    )
++
++
++@text_extractor()
++def extract_ods(file_path: str) -> str:
++    """Extract text from an OpenDocument Spreadsheet (.ods) file."""
++    from lxml import etree
++
++    with zipfile.ZipFile(file_path) as zf:
++        with zf.open("content.xml") as f:
++            tree = etree.parse(f)
++    ns_table = "urn:oasis:names:tc:opendocument:xmlns:table:1.0"
++    ns_text = "urn:oasis:names:tc:opendocument:xmlns:text:1.0"
++
++    for table in tree.iter(f"{{{ns_table}}}table"):
++        name = table.get(f"{{{ns_table}}}name", "Sheet")
++        yield (f"--- {name} ---")
++        for row in table.iter(f"{{{ns_table}}}table-row"):
++            cells = []
++            for cell in row.iter(f"{{{ns_table}}}table-cell"):
++                cell_text = " ".join(
++                    "".join(p.itertext())
++                    for p in cell.iter(f"{{{ns_text}}}p")
++                )
++                cells.append(cell_text)
++            yield ("\t".join(cells))
++
++
++
++@text_extractor()
++def extract_odp(file_path: str) -> str:
++    """Extract text from an OpenDocument Presentation (.odp) file."""
++    from lxml import etree
++
++    with zipfile.ZipFile(file_path) as zf:
++        with zf.open("content.xml") as f:
++            tree = etree.parse(f)
++    ns_draw = "urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"
++    ns_text = "urn:oasis:names:tc:opendocument:xmlns:text:1.0"
++
++    for i, page in enumerate(tree.iter(f"{{{ns_draw}}}page"), 1):
++        yield (f"--- Slide {i} ---")
++        for p in page.iter(f"{{{ns_text}}}p"):
++            text = "".join(p.itertext()).strip()
++            if text:
++                yield (text)
++
++
++
++@text_extractor("\n\n")
++def extract_epub(file_path: str, strict: bool = False) -> str:
++    """Extract text from an EPUB e-book."""
++    from lxml import etree
++
++
++    with zipfile.ZipFile(file_path) as zf:
++        # Parse the container to find the root file
++        with zf.open("META-INF/container.xml") as cf:
++            container = etree.parse(cf)
++        ns_container = "urn:oasis:names:tc:opendocument:xmlns:container"
++        rootfile = container.find(f".//{{{ns_container}}}rootfile")
++        if rootfile is None:
++            rootfile = container.xpath("//*[local-name()='rootfile']")
++            rootfile = rootfile[0] if rootfile else None
++
++        if rootfile is not None:
++            opf_path = rootfile.get("full-path", "")
++            opf_dir = opf_path.rsplit("/", 1)[0] + "/" if "/" in opf_path else ""
++            with zf.open(opf_path) as opf_file:
++                opf = etree.parse(opf_file)
++            spine_ids = [
++                item.get("idref")
++                for item in opf.xpath("//*[local-name()='itemref']")
++            ]
++            manifest = {
++                item.get("id"): item.get("href")
++                for item in opf.xpath("//*[local-name()='item']")
++            }
++            for idref in spine_ids:
++                href = manifest.get(idref, "")
++                item_path = opf_dir + href if not href.startswith("/") else href.lstrip("/")
++                try:
++                    with zf.open(item_path) as html_file:
++                        html_tree = etree.parse(html_file, etree.HTMLParser())
++                        body = html_tree.find(".//body")
++                        if body is not None:
++                            text = "".join(body.itertext())
++                            yield (text.strip())
++                except (KeyError, etree.XMLSyntaxError):
++                    if strict:
++                        raise ValueError(f"Could not extract EPUB chapter: {item_path}")
++                    continue
++        else:
++            for name in zf.namelist():
++                if name.endswith((".html", ".xhtml", ".htm")):
++                    try:
++                        with zf.open(name) as html_file:
++                            html_tree = etree.parse(html_file, etree.HTMLParser())
++                            body = html_tree.find(".//body")
++                            if body is not None:
++                                text = "".join(body.itertext())
++                                yield (text.strip())
++                    except etree.XMLSyntaxError:
++                        if strict:
++                            raise ValueError(f"Could not extract EPUB chapter: {name}")
++                        continue
++
++
++
++@text_extractor()
++def extract_eml(file_path: str) -> str:
++    """Extract text from an email message (.eml)."""
++    import email
++    from email import policy
++
++    with open(file_path, "rb") as f:
++        msg = email.message_from_binary_file(f, policy=policy.default)
++
++    for header in ("From", "To", "Cc", "Date", "Subject"):
++        val = msg.get(header)
++        if val:
++            yield (f"{header}: {val}")
++    yield ("")  # blank line after headers
++    body = msg.get_body(preferencelist=("plain", "html"))
++    if body:
++        content = body.get_content()
++        if body.get_content_type() == "text/html":
++            from lxml import etree
++            tree = etree.HTML(content)
++            content = "".join(tree.itertext()) if tree is not None else content
++        yield (content)
++
++
++
++# MIME type / extension → extractor mapping.
++# Checked in order by read_file; the first match wins.
++# Each entry: (mime_type_or_None, file_extension_or_None, extractor)
++EXTRACTORS: list[tuple[str | None, str | None, callable]] = [
++    ("application/pdf", None, extract_pdf),
++    ("application/vnd.openxmlformats-officedocument.wordprocessingml.document", None, extract_docx),
++    ("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", None, extract_xlsx),
++    ("application/vnd.openxmlformats-officedocument.presentationml.presentation", None, extract_pptx),
++    ("application/rtf", ".rtf", extract_rtf),
++    ("application/vnd.ms-excel", ".xls", extract_xls),
++    ("application/vnd.oasis.opendocument.text", ".odt", extract_odt),
++    ("application/vnd.oasis.opendocument.spreadsheet", ".ods", extract_ods),
++    ("application/vnd.oasis.opendocument.presentation", ".odp", extract_odp),
++    ("application/epub+zip", ".epub", extract_epub),
++    ("message/rfc822", ".eml", extract_eml),
++]
++
++
++if __name__ == "__main__":
++    import json
++    import mimetypes
++    import sys
++
++    try:
++        payload = json.load(sys.stdin)
++        path = payload["path"]
++        mime = mimetypes.guess_type(path)[0]
++        extractor = next(fn for kind, suffix, fn in EXTRACTORS if kind and kind == mime or suffix and path.lower().endswith(suffix))
++        with open(payload["output"], "w", encoding="utf-8", newline="") as output:
++            if hasattr(extractor, "write_to"):
++                extractor.write_to(path, output)
++            else:
++                output.write(extractor(path))
++        result = {}
++    except Exception as exc:
++        result = {"error": str(exc), "error_type": type(exc).__name__}
++    json.dump(result, sys.stdout)
+diff --git a/open_terminal/utils/file_compare.py b/open_terminal/utils/file_compare.py
+index 7b614a5c1dccb02ee4299a2b5649680394c11435..ca9ce6a9bf164a0b938c7e2b400703cdeb18deaf 100644
+--- a/open_terminal/utils/file_compare.py
++++ b/open_terminal/utils/file_compare.py
+@@ -1,259 +1,259 @@
+-"""Read-only text comparison. Workers receive structured input on stdin."""
+-
+-import difflib
+-import io
+-import json
+-import mimetypes
+-import os
+-from pathlib import Path
+-import re
+-import sys
+-
+-from open_terminal.utils.limits import run_worker
+-
+-from fastapi import HTTPException
+-from pydantic import BaseModel, Field
+-
+-from open_terminal.utils.documents import (
+-    EXTRACTORS,
+-    extract_docx,
+-    extract_pdf,
+-    extract_epub,
+-)
+-
+-TIMEOUT_SECONDS = 60
+-MAX_FILE_BYTES = 50 * 1024 * 1024
+-MAX_TEXT_CHARS = 2_000_000
+-MAX_LINES = 50_000
+-
+-
+-class ComparisonText(io.StringIO):
+-    def write(self, text):
+-        # CRLF normalization can halve the length; enforce the exact limit below.
+-        if self.tell() + len(text) > 2 * MAX_TEXT_CHARS:
+-            raise ValueError("Extracted text exceeds the comparison limit (2 million characters / 50,000 lines). Nothing was truncated.")
+-        return super().write(text)
+-
+-
+-class CompareRequest(BaseModel):
+-    original: str = Field(min_length=1)
+-    revised: str = Field(min_length=1)
+-    ignore_whitespace: bool = False
+-
+-
+-def extract(path):
+-    name = Path(path).name
+-    try:
+-        if os.path.getsize(path) > MAX_FILE_BYTES:
+-            raise ValueError("File exceeds the 50 MiB comparison limit.")
+-        mime = mimetypes.guess_type(path)[0]
+-        notices = []
+-        extractor = next(
+-            (
+-                fn
+-                for kind, suffix, fn in EXTRACTORS
+-                if (kind and kind == mime) or (suffix and path.lower().endswith(suffix))
+-            ),
+-            None,
+-        )
+-        if extractor:
+-            if hasattr(extractor, "write_to"):
+-                output = ComparisonText()
+-                options = {"strict": True} if extractor in (extract_pdf, extract_epub) else {}
+-                extractor.write_to(path, output, **options)
+-                text = output.getvalue()
+-            elif extractor in (extract_pdf, extract_epub):
+-                text = extractor(path, strict=True)
+-            else:
+-                text = extractor(path)
+-            notices.append("Text only; formatting, images and layout are not compared.")
+-            if extractor == extract_docx:
+-                notices.append(
+-                    "Headers, footers, comments, footnotes and text boxes are excluded. "
+-                    "Tracked insertions are included; tracked deletions are excluded."
+-                )
+-            if path.lower().endswith((".xlsx", ".xls", ".ods")):
+-                notices.append(
+-                    "Compares extracted cell values; formulas and formatting are not compared."
+-                )
+-            if path.lower().endswith((".pptx", ".odp")):
+-                notices.append(
+-                    "Compares extracted slide text; speaker notes and embedded objects are excluded."
+-                )
+-            if path.lower().endswith(".pptx"):
+-                notices.append("Tables and grouped shapes are excluded.")
+-            if path.lower().endswith(".eml"):
+-                notices.append(
+-                    "Compares message headers and body; attachments are excluded."
+-                )
+-            if not text.strip():
+-                raise ValueError(
+-                    "No extractable text. This document cannot be compared."
+-                )
+-        else:
+-            raw = Path(path).read_bytes()
+-            encoding = "utf-8-sig"
+-            if raw.startswith((b"\xff\xfe\x00\x00", b"\x00\x00\xfe\xff")):
+-                encoding = "utf-32"
+-            elif raw.startswith((b"\xff\xfe", b"\xfe\xff")):
+-                encoding = "utf-16"
+-            try:
+-                text = raw.decode(encoding)
+-            except UnicodeDecodeError as exc:
+-                raise ValueError("Unsupported binary file or text encoding.") from exc
+-            if any(ord(c) < 32 and c not in "\n\r\t\f" for c in text):
+-                raise ValueError("Unsupported binary file.")
+-        text = text.replace("\r\n", "\n").replace("\r", "\n")
+-        if len(text) > MAX_TEXT_CHARS:
+-            raise ValueError("Extracted text exceeds the comparison limit (2 million characters / 50,000 lines). Nothing was truncated.")
+-        line_breaks = "\n\v\f\x1c\x1d\x1e\x85\u2028\u2029"
+-        line_count = sum(1 for _ in re.finditer("[" + line_breaks + "]", text)) + bool(text and text[-1] not in line_breaks)
+-        if line_count > MAX_LINES:
+-            raise ValueError(
+-                "Extracted text exceeds the comparison limit (2 million characters / 50,000 lines). Nothing was truncated."
+-            )
+-        lines = text.splitlines()
+-        return {"path": path, "name": name, "notices": notices}, lines
+-    except Exception as exc:
+-        raise ValueError(f"{name}: {exc}") from exc
+-
+-
+-def segments(original, revised):
+-    # Bound expensive intraline matching; whole lines remain visible above this limit.
+-    if max(len(original), len(revised)) > 4096:
+-        return (
+-            [{"text": original, "changed": False}],
+-            [{"text": revised, "changed": False}],
+-        )
+-    a, b = (re.findall(r"\w+|[^\w\s]|\s+", text) for text in (original, revised))
+-    left, right = [], []
+-    for tag, i, j, k, l in difflib.SequenceMatcher(
+-        None, a, b, autojunk=False
+-    ).get_opcodes():
+-        if i != j:
+-            left.append({"text": "".join(a[i:j]), "changed": tag != "equal"})
+-        if k != l:
+-            right.append({"text": "".join(b[k:l]), "changed": tag != "equal"})
+-    return left, right
+-
+-
+-def compare(original, revised, ignore_whitespace=False):
+-    old, a = extract(original)
+-    new, b = extract(revised)
+-    keys = lambda lines: (
+-        [re.sub(r"\s+", "", line) for line in lines] if ignore_whitespace else lines
+-    )
+-    matcher = difflib.SequenceMatcher(None, keys(a), keys(b), autojunk=False)
+-    hunks, additions, deletions = [], 0, 0
+-    for group in matcher.get_grouped_opcodes(3):
+-        lines = []
+-        for tag, i, j, k, l in group:
+-            if tag == "equal":
+-                for x, y in zip(range(i, j), range(k, l)):
+-                    lines.append(
+-                        {
+-                            "type": "context",
+-                            "oldNumber": x + 1,
+-                            "newNumber": y + 1,
+-                            "content": a[x],
+-                            "revisedContent": b[y],
+-                            "segments": [{"text": a[x], "changed": False}],
+-                        }
+-                    )
+-                continue
+-            removed, added = [], []
+-            for x in range(i, j):
+-                removed.append(
+-                    {
+-                        "type": "removed",
+-                        "oldNumber": x + 1,
+-                        "newNumber": None,
+-                        "content": a[x],
+-                        "segments": [{"text": a[x], "changed": False}],
+-                    }
+-                )
+-            for y in range(k, l):
+-                added.append(
+-                    {
+-                        "type": "added",
+-                        "oldNumber": None,
+-                        "newNumber": y + 1,
+-                        "content": b[y],
+-                        "segments": [{"text": b[y], "changed": False}],
+-                    }
+-                )
+-            for left, right in zip(removed, added):
+-                left["segments"], right["segments"] = segments(
+-                    left["content"], right["content"]
+-                )
+-            lines.extend(removed + added)
+-            additions += len(added)
+-            deletions += len(removed)
+-        _, i, _, k, _ = group[0]
+-        _, _, j, _, l = group[-1]
+-        old_start = i + 1 if j > i else i
+-        new_start = k + 1 if l > k else k
+-        hunks.append(
+-            {"header": f"@@ -{old_start},{j-i} +{new_start},{l-k} @@", "lines": lines}
+-        )
+-    return {
+-        "original": old,
+-        "revised": new,
+-        "additions": additions,
+-        "deletions": deletions,
+-        "hunks": hunks,
+-    }
+-
+-
+-async def run_comparison(request, payload, fs, cwd=None):
+-    paths = []
+-    for path in (payload.original, payload.revised):
+-        target = fs.resolve_path(path, cwd=cwd)
+-        try:
+-            fs._check_path(target)
+-            target = os.path.realpath(target)
+-            fs._check_path(target)
+-            if not await fs.isfile(target):
+-                raise HTTPException(404, f"{Path(path).name}: File not found.")
+-        except PermissionError as exc:
+-            raise HTTPException(403, f"{Path(path).name}: Access denied.") from exc
+-        paths.append(target)
+-    command = [sys.executable, "-m", "open_terminal.utils.file_compare"]
+-    process_options = {}
+-    if fs.username:
+-        if hasattr(os, "getuid") and os.getuid() == 0:
+-            import pwd
+-
+-            account = pwd.getpwnam(fs.username)
+-            process_options = {
+-                "user": account.pw_uid,
+-                "group": account.pw_gid,
+-                "extra_groups": [],
+-            }
+-        else:
+-            command = ["sudo", "-n", "-u", fs.username, "--", *command]
+-    try:
+-        stdout = await run_worker(
+-            command,
+-            json.dumps({"original": paths[0], "revised": paths[1], "ignore_whitespace": payload.ignore_whitespace}).encode(),
+-            request=request, timeout=TIMEOUT_SECONDS, **process_options,
+-        )
+-    except HTTPException as exc:
+-        messages = {
+-            408: "Comparison exceeded the 60 second limit. Try smaller files.",
+-            422: "Comparison failed. Check that the document libraries are installed and the files are readable.",
+-            499: "Comparison cancelled.",
+-        }
+-        raise HTTPException(exc.status_code, messages.get(exc.status_code, exc.detail)) from exc
+-    result = json.loads(stdout)
+-    if "error" in result:
+-        raise HTTPException(422, result["error"])
+-    return result
+-
+-
+-if __name__ == "__main__":
+-    try:
+-        result = compare(**json.load(sys.stdin))
+-    except Exception as exc:
+-        result = {"error": str(exc)}
+-    json.dump(result, sys.stdout)
++"""Read-only text comparison. Workers receive structured input on stdin."""
++
++import difflib
++import io
++import json
++import mimetypes
++import os
++from pathlib import Path
++import re
++import sys
++
++from open_terminal.utils.limits import run_worker
++
++from fastapi import HTTPException
++from pydantic import BaseModel, Field
++
++from open_terminal.utils.documents import (
++    EXTRACTORS,
++    extract_docx,
++    extract_pdf,
++    extract_epub,
++)
++
++TIMEOUT_SECONDS = 60
++MAX_FILE_BYTES = 50 * 1024 * 1024
++MAX_TEXT_CHARS = 2_000_000
++MAX_LINES = 50_000
++
++
++class ComparisonText(io.StringIO):
++    def write(self, text):
++        # CRLF normalization can halve the length; enforce the exact limit below.
++        if self.tell() + len(text) > 2 * MAX_TEXT_CHARS:
++            raise ValueError("Extracted text exceeds the comparison limit (2 million characters / 50,000 lines). Nothing was truncated.")
++        return super().write(text)
++
++
++class CompareRequest(BaseModel):
++    original: str = Field(min_length=1)
++    revised: str = Field(min_length=1)
++    ignore_whitespace: bool = False
++
++
++def extract(path):
++    name = Path(path).name
++    try:
++        if os.path.getsize(path) > MAX_FILE_BYTES:
++            raise ValueError("File exceeds the 50 MiB comparison limit.")
++        mime = mimetypes.guess_type(path)[0]
++        notices = []
++        extractor = next(
++            (
++                fn
++                for kind, suffix, fn in EXTRACTORS
++                if (kind and kind == mime) or (suffix and path.lower().endswith(suffix))
++            ),
++            None,
++        )
++        if extractor:
++            if hasattr(extractor, "write_to"):
++                output = ComparisonText()
++                options = {"strict": True} if extractor in (extract_pdf, extract_epub) else {}
++                extractor.write_to(path, output, **options)
++                text = output.getvalue()
++            elif extractor in (extract_pdf, extract_epub):
++                text = extractor(path, strict=True)
++            else:
++                text = extractor(path)
++            notices.append("Text only; formatting, images and layout are not compared.")
++            if extractor == extract_docx:
++                notices.append(
++                    "Headers, footers, comments, footnotes and text boxes are excluded. "
++                    "Tracked insertions are included; tracked deletions are excluded."
++                )
++            if path.lower().endswith((".xlsx", ".xls", ".ods")):
++                notices.append(
++                    "Compares extracted cell values; formulas and formatting are not compared."
++                )
++            if path.lower().endswith((".pptx", ".odp")):
++                notices.append(
++                    "Compares extracted slide text; speaker notes and embedded objects are excluded."
++                )
++            if path.lower().endswith(".pptx"):
++                notices.append("Tables and grouped shapes are excluded.")
++            if path.lower().endswith(".eml"):
++                notices.append(
++                    "Compares message headers and body; attachments are excluded."
++                )
++            if not text.strip():
++                raise ValueError(
++                    "No extractable text. This document cannot be compared."
++                )
++        else:
++            raw = Path(path).read_bytes()
++            encoding = "utf-8-sig"
++            if raw.startswith((b"\xff\xfe\x00\x00", b"\x00\x00\xfe\xff")):
++                encoding = "utf-32"
++            elif raw.startswith((b"\xff\xfe", b"\xfe\xff")):
++                encoding = "utf-16"
++            try:
++                text = raw.decode(encoding)
++            except UnicodeDecodeError as exc:
++                raise ValueError("Unsupported binary file or text encoding.") from exc
++            if any(ord(c) < 32 and c not in "\n\r\t\f" for c in text):
++                raise ValueError("Unsupported binary file.")
++        text = text.replace("\r\n", "\n").replace("\r", "\n")
++        if len(text) > MAX_TEXT_CHARS:
++            raise ValueError("Extracted text exceeds the comparison limit (2 million characters / 50,000 lines). Nothing was truncated.")
++        line_breaks = "\n\v\f\x1c\x1d\x1e\x85\u2028\u2029"
++        line_count = sum(1 for _ in re.finditer("[" + line_breaks + "]", text)) + bool(text and text[-1] not in line_breaks)
++        if line_count > MAX_LINES:
++            raise ValueError(
++                "Extracted text exceeds the comparison limit (2 million characters / 50,000 lines). Nothing was truncated."
++            )
++        lines = text.splitlines()
++        return {"path": path, "name": name, "notices": notices}, lines
++    except Exception as exc:
++        raise ValueError(f"{name}: {exc}") from exc
++
++
++def segments(original, revised):
++    # Bound expensive intraline matching; whole lines remain visible above this limit.
++    if max(len(original), len(revised)) > 4096:
++        return (
++            [{"text": original, "changed": False}],
++            [{"text": revised, "changed": False}],
++        )
++    a, b = (re.findall(r"\w+|[^\w\s]|\s+", text) for text in (original, revised))
++    left, right = [], []
++    for tag, i, j, k, l in difflib.SequenceMatcher(
++        None, a, b, autojunk=False
++    ).get_opcodes():
++        if i != j:
++            left.append({"text": "".join(a[i:j]), "changed": tag != "equal"})
++        if k != l:
++            right.append({"text": "".join(b[k:l]), "changed": tag != "equal"})
++    return left, right
++
++
++def compare(original, revised, ignore_whitespace=False):
++    old, a = extract(original)
++    new, b = extract(revised)
++    keys = lambda lines: (
++        [re.sub(r"\s+", "", line) for line in lines] if ignore_whitespace else lines
++    )
++    matcher = difflib.SequenceMatcher(None, keys(a), keys(b), autojunk=False)
++    hunks, additions, deletions = [], 0, 0
++    for group in matcher.get_grouped_opcodes(3):
++        lines = []
++        for tag, i, j, k, l in group:
++            if tag == "equal":
++                for x, y in zip(range(i, j), range(k, l)):
++                    lines.append(
++                        {
++                            "type": "context",
++                            "oldNumber": x + 1,
++                            "newNumber": y + 1,
++                            "content": a[x],
++                            "revisedContent": b[y],
++                            "segments": [{"text": a[x], "changed": False}],
++                        }
++                    )
++                continue
++            removed, added = [], []
++            for x in range(i, j):
++                removed.append(
++                    {
++                        "type": "removed",
++                        "oldNumber": x + 1,
++                        "newNumber": None,
++                        "content": a[x],
++                        "segments": [{"text": a[x], "changed": False}],
++                    }
++                )
++            for y in range(k, l):
++                added.append(
++                    {
++                        "type": "added",
++                        "oldNumber": None,
++                        "newNumber": y + 1,
++                        "content": b[y],
++                        "segments": [{"text": b[y], "changed": False}],
++                    }
++                )
++            for left, right in zip(removed, added):
++                left["segments"], right["segments"] = segments(
++                    left["content"], right["content"]
++                )
++            lines.extend(removed + added)
++            additions += len(added)
++            deletions += len(removed)
++        _, i, _, k, _ = group[0]
++        _, _, j, _, l = group[-1]
++        old_start = i + 1 if j > i else i
++        new_start = k + 1 if l > k else k
++        hunks.append(
++            {"header": f"@@ -{old_start},{j-i} +{new_start},{l-k} @@", "lines": lines}
++        )
++    return {
++        "original": old,
++        "revised": new,
++        "additions": additions,
++        "deletions": deletions,
++        "hunks": hunks,
++    }
++
++
++async def run_comparison(request, payload, fs, cwd=None):
++    paths = []
++    for path in (payload.original, payload.revised):
++        target = fs.resolve_path(path, cwd=cwd)
++        try:
++            fs._check_path(target)
++            target = os.path.realpath(target)
++            fs._check_path(target)
++            if not await fs.isfile(target):
++                raise HTTPException(404, f"{Path(path).name}: File not found.")
++        except PermissionError as exc:
++            raise HTTPException(403, f"{Path(path).name}: Access denied.") from exc
++        paths.append(target)
++    command = [sys.executable, "-m", "open_terminal.utils.file_compare"]
++    process_options = {}
++    if fs.username:
++        if hasattr(os, "getuid") and os.getuid() == 0:
++            import pwd
++
++            account = pwd.getpwnam(fs.username)
++            process_options = {
++                "user": account.pw_uid,
++                "group": account.pw_gid,
++                "extra_groups": [],
++            }
++        else:
++            command = ["sudo", "-n", "-u", fs.username, "--", *command]
++    try:
++        stdout = await run_worker(
++            command,
++            json.dumps({"original": paths[0], "revised": paths[1], "ignore_whitespace": payload.ignore_whitespace}).encode(),
++            request=request, timeout=TIMEOUT_SECONDS, **process_options,
++        )
++    except HTTPException as exc:
++        messages = {
++            408: "Comparison exceeded the 60 second limit. Try smaller files.",
++            422: "Comparison failed. Check that the document libraries are installed and the files are readable.",
++            499: "Comparison cancelled.",
++        }
++        raise HTTPException(exc.status_code, messages.get(exc.status_code, exc.detail)) from exc
++    result = json.loads(stdout)
++    if "error" in result:
++        raise HTTPException(422, result["error"])
++    return result
++
++
++if __name__ == "__main__":
++    try:
++        result = compare(**json.load(sys.stdin))
++    except Exception as exc:
++        result = {"error": str(exc)}
++    json.dump(result, sys.stdout)
+diff --git a/open_terminal/utils/git.py b/open_terminal/utils/git.py
+index d42e474d944faeffbd3d5de0f1bbebb6634c14e9..22d3c67b164e3ad5e455d7714f4d2beeb3e9df9b 100644
+--- a/open_terminal/utils/git.py
++++ b/open_terminal/utils/git.py
+@@ -5,12 +5,31 @@ import os
+ import signal
+ import json
+ import sys
++import shutil
+ 
+ from fastapi import HTTPException
+ 
+ from open_terminal.env import sanitized_environ
+ 
+ 
++def git_environment(fs):
++    env = {key: value for key, value in sanitized_environ().items() if not key.upper().startswith("GIT_")}
++    if fs.username:
++        # A different OS user must use that user's GitHub/SSH/GPG identity,
++        # never the server's inherited credentials or agent sockets.
++        private = {"GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN",
++                   "GH_CONFIG_DIR", "SSH_AUTH_SOCK", "SSH_AGENT_PID", "GNUPGHOME", "GPG_AGENT_INFO",
++                   "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_DATA_HOME", "XDG_RUNTIME_DIR"}
++        env = {key: value for key, value in env.items() if key.upper() not in private}
++        env.update(XDG_CONFIG_HOME=os.path.join(fs.home, ".config"),
++                   XDG_CACHE_HOME=os.path.join(fs.home, ".cache"),
++                   XDG_DATA_HOME=os.path.join(fs.home, ".local", "share"),
++                   GH_CONFIG_DIR=os.path.join(fs.home, ".config", "gh"),
++                   GNUPGHOME=os.path.join(fs.home, ".gnupg"))
++    env.update(HOME=fs.home, GIT_TERMINAL_PROMPT="0", GIT_OPTIONAL_LOCKS="0", GH_PROMPT_DISABLED="1", LC_ALL="C")
++    return env
++
++
+ class GitRepository:
+     def __init__(self, fs, directory, cwd=None):
+         self.fs = fs
+@@ -25,13 +44,21 @@ class GitRepository:
+         return os.path.realpath(path)
+ 
+     async def run(self, *args, check=True, program="git", input_data=None):
+-        env = {key: value for key, value in sanitized_environ().items() if not key.startswith("GIT_")}
+-        env.update(HOME=self.fs.home, GIT_TERMINAL_PROMPT="0", GIT_OPTIONAL_LOCKS="0", GH_PROMPT_DISABLED="1", LC_ALL="C")
++        env = git_environment(self.fs)
+         command = ["git", "-c", "core.quotePath=false", *args]
+         if program == "gh":
+             command = ["gh", *args]
+         elif program == "line-stats":
+-            command = [sys.executable, "-m", "open_terminal.utils.git"]
++            # Do not import an attacker-controlled open_terminal package from
++            # the repository being inspected or from inherited PYTHONPATH.
++            command = [sys.executable, "-I", os.path.join(os.path.dirname(os.path.abspath(__file__)), "git_line_stats.py")]
++        if program != "line-stats":
++            executable = shutil.which(command[0])
++            if not executable:
++                raise HTTPException(404, f"{program} is unavailable")
++            # Resolve before changing cwd so a repository-local git.exe/gh.exe
++            # cannot shadow the trusted executable on Windows.
++            command[0] = os.path.abspath(executable)
+         options = {}
+         if self.fs.username:
+             if hasattr(os, "getuid") and os.getuid() == 0:
+@@ -394,23 +421,5 @@ class GitRepository:
+ 
+ 
+ if __name__ == "__main__":
+-    # Count untracked files in one bounded worker under the terminal user's identity.
+-    counts = {}
+-    for path in json.load(sys.stdin):
+-        try:
+-            if os.path.islink(path):
+-                data = os.readlink(path).encode()
+-                counts[path] = data.count(b"\n") + int(bool(data) and not data.endswith(b"\n"))
+-                continue
+-            count, last, binary = 0, b"", False
+-            with open(path, "rb") as source:
+-                while chunk := source.read(65536):
+-                    if b"\0" in chunk:
+-                        binary = True
+-                        break
+-                    count += chunk.count(b"\n")
+-                    last = chunk[-1:]
+-            counts[path] = None if binary else count + int(bool(last) and last != b"\n")
+-        except OSError:
+-            counts[path] = None
+-    json.dump(counts, sys.stdout)
++    from open_terminal.utils.git_line_stats import main
++    main()
+diff --git a/open_terminal/utils/git_line_stats.py b/open_terminal/utils/git_line_stats.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..36357d37a3194bdcb25d95f8d16f23d0d3215d86
+--- /dev/null
++++ b/open_terminal/utils/git_line_stats.py
+@@ -0,0 +1,31 @@
++"""Isolated stdlib worker for repository file counts; no cwd/module imports."""
++import json
++import os
++import sys
++
++
++def main():
++    # Count untracked files in one bounded worker under the terminal user's identity.
++    counts = {}
++    for path in json.load(sys.stdin):
++        try:
++            if os.path.islink(path):
++                data = os.readlink(path).encode()
++                counts[path] = data.count(b"\n") + int(bool(data) and not data.endswith(b"\n"))
++                continue
++            count, last, binary = 0, b"", False
++            with open(path, "rb") as source:
++                while chunk := source.read(65536):
++                    if b"\0" in chunk:
++                        binary = True
++                        break
++                    count += chunk.count(b"\n")
++                    last = chunk[-1:]
++            counts[path] = None if binary else count + int(bool(last) and last != b"\n")
++        except OSError:
++            counts[path] = None
++    json.dump(counts, sys.stdout)
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/open_terminal/utils/limits.py b/open_terminal/utils/limits.py
+index f6c52701029d3258f20b3bfe287ca805c9cbd6c6..497a4a0d384f0b4180efe5526b8952c8b58f654e 100644
+--- a/open_terminal/utils/limits.py
++++ b/open_terminal/utils/limits.py
+@@ -1,95 +1,95 @@
+-"""Streaming I/O helpers with cancellation-safe resource cleanup."""
+-
+-import asyncio
+-import os
+-
+-from fastapi import HTTPException
+-
+-CHUNK_SIZE = 64 * 1024
+-
+-
+-async def run_io(function, *args):
+-    """Keep admission/cleanup ownership until a cancelled thread actually stops."""
+-    task = asyncio.create_task(asyncio.to_thread(function, *args))
+-    try:
+-        return await asyncio.shield(task)
+-    except asyncio.CancelledError:
+-        try:
+-            await task
+-        except Exception:
+-            pass
+-        raise
+-
+-
+-class NormalizeNullQueryMiddleware:
+-    def __init__(self, app):
+-        self.app = app
+-
+-    async def __call__(self, scope, receive, send):
+-        if scope["type"] == "http":
+-            from urllib.parse import parse_qsl, urlencode
+-            params = parse_qsl(scope.get("query_string", b"").decode("latin-1"), keep_blank_values=True)
+-            cleaned = [(key, value) for key, value in params if value.lower() != "null"]
+-            if len(cleaned) != len(params):
+-                scope = {**scope, "query_string": urlencode(cleaned).encode()}
+-        await self.app(scope, receive, send)
+-
+-
+-async def run_worker(command, payload=None, *, request=None, timeout=60, **options):
+-    """Run document work with cancellation and process-group cleanup."""
+-    import signal
+-    import subprocess
+-
+-    process = await asyncio.create_subprocess_exec(
+-        *command, stdin=asyncio.subprocess.PIPE,
+-        stdout=asyncio.subprocess.PIPE, stderr=subprocess.DEVNULL,
+-        start_new_session=os.name != "nt", **options,
+-    )
+-
+-    async def exchange():
+-        if payload:
+-            process.stdin.write(payload)
+-            await process.stdin.drain()
+-        process.stdin.close()
+-        output = bytearray()
+-        while chunk := await process.stdout.read(CHUNK_SIZE):
+-            output.extend(chunk)
+-        await process.wait()
+-        if process.returncode:
+-            raise HTTPException(422, "Document worker failed. Check that the document libraries are installed and the files are readable.")
+-        return bytes(output)
+-
+-    async def disconnected():
+-        while (await request.receive())["type"] != "http.disconnect":
+-            pass
+-
+-    task = asyncio.create_task(exchange())
+-    disconnect = asyncio.create_task(disconnected()) if request else None
+-    try:
+-        done, _ = await asyncio.wait(
+-            {task, disconnect} if disconnect else {task},
+-            timeout=timeout, return_when=asyncio.FIRST_COMPLETED,
+-        )
+-        if not done:
+-            raise HTTPException(408, "Document operation exceeded its execution deadline.")
+-        if disconnect and disconnect in done:
+-            raise HTTPException(499, "Document operation cancelled.")
+-        return await task
+-    finally:
+-        if os.name != "nt":
+-            try:
+-                os.killpg(process.pid, signal.SIGKILL)
+-            except ProcessLookupError:
+-                pass
+-        elif process.returncode is None:
+-            process.kill()
+-        task.cancel()
+-        if disconnect:
+-            disconnect.cancel()
+-        await asyncio.gather(*([task, disconnect] if disconnect else [task]), return_exceptions=True)
+-        process.stdin.close()
+-        # A paused stdout transport can keep Process.wait() pending even
+-        # after SIGKILL. Discard remaining bounded pipe chunks before reaping.
+-        while await process.stdout.read(CHUNK_SIZE):
+-            pass
+-        await process.wait()
++"""Streaming I/O helpers with cancellation-safe resource cleanup."""
++
++import asyncio
++import os
++
++from fastapi import HTTPException
++
++CHUNK_SIZE = 64 * 1024
++
++
++async def run_io(function, *args):
++    """Keep admission/cleanup ownership until a cancelled thread actually stops."""
++    task = asyncio.create_task(asyncio.to_thread(function, *args))
++    try:
++        return await asyncio.shield(task)
++    except asyncio.CancelledError:
++        try:
++            await task
++        except Exception:
++            pass
++        raise
++
++
++class NormalizeNullQueryMiddleware:
++    def __init__(self, app):
++        self.app = app
++
++    async def __call__(self, scope, receive, send):
++        if scope["type"] == "http":
++            from urllib.parse import parse_qsl, urlencode
++            params = parse_qsl(scope.get("query_string", b"").decode("latin-1"), keep_blank_values=True)
++            cleaned = [(key, value) for key, value in params if value.lower() != "null"]
++            if len(cleaned) != len(params):
++                scope = {**scope, "query_string": urlencode(cleaned).encode()}
++        await self.app(scope, receive, send)
++
++
++async def run_worker(command, payload=None, *, request=None, timeout=60, **options):
++    """Run document work with cancellation and process-group cleanup."""
++    import signal
++    import subprocess
++
++    process = await asyncio.create_subprocess_exec(
++        *command, stdin=asyncio.subprocess.PIPE,
++        stdout=asyncio.subprocess.PIPE, stderr=subprocess.DEVNULL,
++        start_new_session=os.name != "nt", **options,
++    )
++
++    async def exchange():
++        if payload:
++            process.stdin.write(payload)
++            await process.stdin.drain()
++        process.stdin.close()
++        output = bytearray()
++        while chunk := await process.stdout.read(CHUNK_SIZE):
++            output.extend(chunk)
++        await process.wait()
++        if process.returncode:
++            raise HTTPException(422, "Document worker failed. Check that the document libraries are installed and the files are readable.")
++        return bytes(output)
++
++    async def disconnected():
++        while (await request.receive())["type"] != "http.disconnect":
++            pass
++
++    task = asyncio.create_task(exchange())
++    disconnect = asyncio.create_task(disconnected()) if request else None
++    try:
++        done, _ = await asyncio.wait(
++            {task, disconnect} if disconnect else {task},
++            timeout=timeout, return_when=asyncio.FIRST_COMPLETED,
++        )
++        if not done:
++            raise HTTPException(408, "Document operation exceeded its execution deadline.")
++        if disconnect and disconnect in done:
++            raise HTTPException(499, "Document operation cancelled.")
++        return await task
++    finally:
++        if os.name != "nt":
++            try:
++                os.killpg(process.pid, signal.SIGKILL)
++            except ProcessLookupError:
++                pass
++        elif process.returncode is None:
++            process.kill()
++        task.cancel()
++        if disconnect:
++            disconnect.cancel()
++        await asyncio.gather(*([task, disconnect] if disconnect else [task]), return_exceptions=True)
++        process.stdin.close()
++        # A paused stdout transport can keep Process.wait() pending even
++        # after SIGKILL. Discard remaining bounded pipe chunks before reaping.
++        while await process.stdout.read(CHUNK_SIZE):
++            pass
++        await process.wait()
+diff --git a/open_terminal/utils/port.py b/open_terminal/utils/port.py
+index 8dfd85a4087fd349ad651d12f049553c0a4f1160..6a6a1e3a1fe17e10c88244a35f43e041fa6b2524 100644
+--- a/open_terminal/utils/port.py
++++ b/open_terminal/utils/port.py
+@@ -40,7 +40,7 @@ async def watch_listening_ports():
+                     subscriber.get_nowait()
+                 subscriber.put_nowait(exc)
+ 
+-    if _scanner is None:
++    if _scanner is None or _scanner.done():
+         _scanner = asyncio.create_task(scan())
+     try:
+         while True:
+diff --git a/open_terminal/utils/runner.py b/open_terminal/utils/runner.py
+index 0cb6e4f43ef28b97f7aabe4ca4a3d6c3ebf78bc2..66d96feada59cc7c7428443bbf15ed0f89e288b9 100644
+--- a/open_terminal/utils/runner.py
++++ b/open_terminal/utils/runner.py
+@@ -6,6 +6,7 @@ import signal
+ import subprocess
+ import time
+ from abc import ABC, abstractmethod
++from open_terminal.env import sanitized_environ
+ 
+ from open_terminal.env import sanitized_environ
+ 
+diff --git a/open_terminal/utils/search.py b/open_terminal/utils/search.py
+index c2f039be155d39a3fe8e86bcf758457e14d99930..dee1d3737a4cef000a4ab68390b69f78558a5aea 100644
+--- a/open_terminal/utils/search.py
++++ b/open_terminal/utils/search.py
+@@ -4,17 +4,43 @@ import json
+ import os
+ import shutil
+ import sqlite3
++import stat
+ import subprocess
+ import tempfile
+ 
+ from open_terminal.utils.limits import CHUNK_SIZE
+ 
+ 
++_PSEUDO_FILESYSTEMS = ("/dev", "/proc", "/sys")
++
++
++def is_regular_file(path):
++    """Do not open devices, FIFOs or sockets while scanning file contents."""
++    try:
++        return stat.S_ISREG(os.stat(path).st_mode)
++    except OSError:
++        return False
++
++
++def _device(path):
++    try:
++        return os.lstat(path).st_dev
++    except OSError:
++        return None
++
++
++def _is_pseudo_filesystem(path):
++    path = os.path.realpath(path)
++    return any(path == mount or path.startswith(mount + os.sep) for mount in _PSEUDO_FILESYSTEMS)
++
++
+ def walk_entries(fs, root, show_hidden=True):
++    root_device = _device(root)
+     for directory, dirs, files in os.walk(root):
+         dirs[:] = [name for name in sorted(dirs)
+                    if (show_hidden or not name.startswith("."))
+-                   and fs.is_path_allowed(os.path.join(directory, name))]
++                   and fs.is_path_allowed(os.path.join(directory, name))
++                   and _device(os.path.join(directory, name)) in (root_device, None)]
+         for name, kind in sorted([(name, "directory") for name in dirs] + [(name, "file") for name in files]):
+             path = os.path.join(directory, name)
+             if (show_hidden or not name.startswith(".")) and fs.is_path_allowed(path):
+@@ -78,12 +104,18 @@ def search_entries(fs, root, show_hidden=False, *, git_files_as_files=False):
+ @contextmanager
+ def matching_files(query, root, show_hidden):
+     """Use rg's ignore rules without its potentially enormous JSON submatch arrays."""
++    if _is_pseudo_filesystem(root):
++        yield None
++        return
+     rg = shutil.which("rg")
+     if not rg:
+         yield None
+         return
+     with tempfile.TemporaryFile() as output:
+-        args = [rg, "--files-with-matches", "--null", "--no-messages", "--fixed-strings", "--ignore-case"]
++        args = [rg, "--files-with-matches", "--null", "--no-messages", "--fixed-strings", "--ignore-case", "--one-file-system"]
++        if os.path.realpath(root) == os.path.sep:
++            for name in ("dev", "proc", "sys"):
++                args.extend(["--glob", f"!{name}/**"])
+         if show_hidden:
+             args.append("--hidden")
+         try:
+diff --git a/open_terminal/utils/search_preview.py b/open_terminal/utils/search_preview.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..961ca5c6f3783616d1d473db01c11df2035a9448
+--- /dev/null
++++ b/open_terminal/utils/search_preview.py
+@@ -0,0 +1,19 @@
++"""Bound grep tool output without hiding matches in long legitimate text lines."""
++MAX_MATCH_CONTENT = 300
++
++def bounded_match_content(line: str, match_start: int) -> str:
++    if len(line) <= MAX_MATCH_CONTENT:
++        return line.rstrip("\r\n")
++    # Avoid copying an entire multi-megabyte matching line just to trim its EOL.
++    length = len(line)
++    while length and line[length - 1] in "\r\n":
++        length -= 1
++    if length <= MAX_MATCH_CONTENT:
++        return line[:length]
++    # Adapted from the context-overflow problem in upstream PR #144. Preserve
++    # long JSON/minified-code matches and show the actual matching region.
++    left = max(0, match_start - MAX_MATCH_CONTENT // 3)
++    right = min(length, left + MAX_MATCH_CONTENT)
++    left = max(0, right - MAX_MATCH_CONTENT)
++    return (("…" if left else "") + line[left:right] + ("…" if right < length else "")
++            + f" [truncated; columns {left + 1}-{right} of {length}]")
+diff --git a/open_terminal/utils/skills.py b/open_terminal/utils/skills.py
+index ef82c6140f6cb98f1034edffdc96a42d5cf3cfec..4702120b01c2b5128b2ef247a064d089ed2b2b1b 100644
+--- a/open_terminal/utils/skills.py
++++ b/open_terminal/utils/skills.py
+@@ -1,73 +1,73 @@
+-"""Small filesystem helpers for terminal-owned Agent Skills."""
+-
+-from __future__ import annotations
+-
+-import os
+-
+-from open_terminal.utils.fs import UserFS
+-
+-MAX_SKILL_RESOURCE_DEPTH = 4
+-MAX_SKILL_RESOURCE_FILES = 50
+-
+-
+-def join_skill_path(base: str, child: str) -> str:
+-    if os.path.isabs(child):
+-        return os.path.normpath(child)
+-    return os.path.normpath(os.path.join(base, child))
+-
+-
+-def parse_skill_frontmatter(text: str) -> tuple[dict[str, str], str]:
+-    if not text.startswith("---\n"):
+-        return {}, text.strip()
+-    end = text.find("\n---", 4)
+-    if end < 0:
+-        return {}, text.strip()
+-
+-    frontmatter: dict[str, str] = {}
+-    lines = text[4:end].splitlines()
+-    idx = 0
+-    while idx < len(lines):
+-        line = lines[idx]
+-        if not line.strip() or line.lstrip().startswith("#") or ":" not in line:
+-            idx += 1
+-            continue
+-        key, value = line.split(":", 1)
+-        key = key.strip()
+-        value = value.strip()
+-        if value in {">", "|"}:
+-            block = []
+-            idx += 1
+-            while idx < len(lines) and (lines[idx].startswith(" ") or lines[idx].startswith("\t")):
+-                block.append(lines[idx].strip())
+-                idx += 1
+-            frontmatter[key] = "\n".join(block) if value == "|" else " ".join(block)
+-            continue
+-        frontmatter[key] = value.strip("\"'")
+-        idx += 1
+-
+-    body_start = text.find("\n", end + 1)
+-    body = text[body_start + 1 :].strip() if body_start >= 0 else ""
+-    return frontmatter, body
+-
+-
+-async def list_skill_resources(fs: UserFS, skill_dir: str) -> list[str]:
+-    resources: list[str] = []
+-
+-    async def walk(directory: str, prefix: str = "", depth: int = 0):
+-        if depth >= MAX_SKILL_RESOURCE_DEPTH or len(resources) >= MAX_SKILL_RESOURCE_FILES:
+-            return
+-        for entry in await fs.listdir(directory):
+-            if len(resources) >= MAX_SKILL_RESOURCE_FILES:
+-                break
+-            name = str(entry.get("name") or "")
+-            if not name or name.startswith(".") or name == "SKILL.md":
+-                continue
+-            rel = f"{prefix}/{name}" if prefix else name
+-            path = join_skill_path(directory, name)
+-            if entry.get("type") == "file":
+-                resources.append(rel)
+-            elif entry.get("type") == "directory":
+-                await walk(path, rel, depth + 1)
+-
+-    await walk(skill_dir)
+-    return resources[:MAX_SKILL_RESOURCE_FILES]
++"""Small filesystem helpers for terminal-owned Agent Skills."""
++
++from __future__ import annotations
++
++import os
++
++from open_terminal.utils.fs import UserFS
++
++MAX_SKILL_RESOURCE_DEPTH = 4
++MAX_SKILL_RESOURCE_FILES = 50
++
++
++def join_skill_path(base: str, child: str) -> str:
++    if os.path.isabs(child):
++        return os.path.normpath(child)
++    return os.path.normpath(os.path.join(base, child))
++
++
++def parse_skill_frontmatter(text: str) -> tuple[dict[str, str], str]:
++    if not text.startswith("---\n"):
++        return {}, text.strip()
++    end = text.find("\n---", 4)
++    if end < 0:
++        return {}, text.strip()
++
++    frontmatter: dict[str, str] = {}
++    lines = text[4:end].splitlines()
++    idx = 0
++    while idx < len(lines):
++        line = lines[idx]
++        if not line.strip() or line.lstrip().startswith("#") or ":" not in line:
++            idx += 1
++            continue
++        key, value = line.split(":", 1)
++        key = key.strip()
++        value = value.strip()
++        if value in {">", "|"}:
++            block = []
++            idx += 1
++            while idx < len(lines) and (lines[idx].startswith(" ") or lines[idx].startswith("\t")):
++                block.append(lines[idx].strip())
++                idx += 1
++            frontmatter[key] = "\n".join(block) if value == "|" else " ".join(block)
++            continue
++        frontmatter[key] = value.strip("\"'")
++        idx += 1
++
++    body_start = text.find("\n", end + 1)
++    body = text[body_start + 1 :].strip() if body_start >= 0 else ""
++    return frontmatter, body
++
++
++async def list_skill_resources(fs: UserFS, skill_dir: str) -> list[str]:
++    resources: list[str] = []
++
++    async def walk(directory: str, prefix: str = "", depth: int = 0):
++        if depth >= MAX_SKILL_RESOURCE_DEPTH or len(resources) >= MAX_SKILL_RESOURCE_FILES:
++            return
++        for entry in await fs.listdir(directory):
++            if len(resources) >= MAX_SKILL_RESOURCE_FILES:
++                break
++            name = str(entry.get("name") or "")
++            if not name or name.startswith(".") or name == "SKILL.md":
++                continue
++            rel = f"{prefix}/{name}" if prefix else name
++            path = join_skill_path(directory, name)
++            if entry.get("type") == "file":
++                resources.append(rel)
++            elif entry.get("type") == "directory":
++                await walk(path, rel, depth + 1)
++
++    await walk(skill_dir)
++    return resources[:MAX_SKILL_RESOURCE_FILES]
+diff --git a/pyproject.toml b/pyproject.toml
+index 45e9f49bf9c77af55e3a152dae1ced56468b5690..d715f48c5b517ba901138652d98e8d9e05724c5c 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -9,22 +9,23 @@ authors = [
+ ]
+ requires-python = ">=3.11"
+ dependencies = [
+-    "fastapi>=0.115.0",
+-    "uvicorn[standard]>=0.34.0",
+-    "watchfiles>=1.1.1",
++    "fastapi==0.136.3",
++    "pydantic==2.13.4",
++    "uvicorn[standard]==0.54.0",
+     "click>=8.1.0",
+-    "httpx>=0.27.0",
+-    "websockets>=14.0",
+-    "python-multipart>=0.0.22",
+-    "aiofiles>=25.1.0",
+-    "pypdf>=5.0.0",
++    "httpx==0.28.1",
++    "python-multipart==0.0.32",
++    "aiofiles==25.1.0",
++    "pypdf==6.21.4",
++    "watchfiles==1.3.0",
++    "websockets==15.0.1",
+     "python-docx>=1.0.0",
+     "openpyxl>=3.1.0",
+     "python-pptx>=1.0.0",
+     "striprtf>=0.0.26",
+     "xlrd>=2.0.0",
+     "pywinpty>=2.0.0; sys_platform == 'win32'",
+-    "pillow>=10.0.0",
++    "pillow==13.0.0",
+     "mss>=10.0.0; sys_platform == 'darwin' or sys_platform == 'win32'",
+     "pyautogui>=0.9.54; sys_platform == 'darwin' or sys_platform == 'win32'",
+     "pyperclip>=1.9.0; sys_platform == 'darwin' or sys_platform == 'win32'",
