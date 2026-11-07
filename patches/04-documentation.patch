@@ -9,8 +9,55 @@ index 0000000000000000000000000000000000000000..87ea693cc86686ee5c26c82b59af94a2
 +  "inference_speedup_percent": null,
 +  "model_required_for_build": false
 +}
+diff --git a/LICENSE b/LICENSE
+index 16464a59e72f7b07c4f2ce3f6825ed101976ebdd..e554af0e0e71b2b3c222c18ae3821954ab2ae6b1 100644
+--- a/LICENSE
++++ b/LICENSE
+@@ -1,21 +1,21 @@
+-MIT License
+-
+-Copyright (c) 2026 Open WebUI Inc. (Timothy Jaeryang Baek)
+-
+-Permission is hereby granted, free of charge, to any person obtaining a copy
+-of this software and associated documentation files (the "Software"), to deal
+-in the Software without restriction, including without limitation the rights
+-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+-copies of the Software, and to permit persons to whom the Software is
+-furnished to do so, subject to the following conditions:
+-
+-The above copyright notice and this permission notice shall be included in all
+-copies or substantial portions of the Software.
+-
+-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+-SOFTWARE.
++MIT License
++
++Copyright (c) 2026 Open WebUI Inc. (Timothy Jaeryang Baek)
++
++Permission is hereby granted, free of charge, to any person obtaining a copy
++of this software and associated documentation files (the "Software"), to deal
++in the Software without restriction, including without limitation the rights
++to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++copies of the Software, and to permit persons to whom the Software is
++furnished to do so, subject to the following conditions:
++
++The above copyright notice and this permission notice shall be included in all
++copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
++SOFTWARE.
 diff --git a/README.md b/README.md
-index 7a4651c00eaa1bb0b1a3421358ec4ef81fa6d0aa..1fe6c7286019ef8044177ec4164d3e12f5a9563a 100644
+index 7a4651c00eaa1bb0b1a3421358ec4ef81fa6d0aa..165139de494e832889f649d52c1098f6065c0121 100644
 --- a/README.md
 +++ b/README.md
 @@ -1,135 +1,36 @@
@@ -24,7 +71,7 @@ index 7a4651c00eaa1bb0b1a3421358ec4ef81fa6d0aa..1fe6c7286019ef8044177ec4164d3e12
 +Unofficial fork with reviewed agent/MCP fixes and extended Russian UI. One latest ZIP + Install.cmd.
  
 -[![Open Terminal in Open WebUI](https://docs.openwebui.com/assets/images/open-terminal-file-browser-54b7cab404a39c11532ca356b40ff6ed.png)](https://docs.openwebui.com/features/open-terminal/)
-+[Upstream](https://github.com/open-webui/open-terminal) · [Release](https://github.com/aktalascloud/open-terminal-ivybridge-avx1/releases/latest) · [Patches](.avx1/PATCHES.json)
++[Upstream](https://github.com/open-webui/open-terminal) · [Release](https://github.com/aktalascloud/open-terminal-ivybridge-avx1/releases/latest) · [Patches](patches/README.md)
  
 -[![PyPI](https://img.shields.io/pypi/v/open-terminal)](https://pypi.org/project/open-terminal/)
 -[![License](https://img.shields.io/github/license/open-webui/open-terminal)](LICENSE)
@@ -170,7 +217,7 @@ index 7a4651c00eaa1bb0b1a3421358ec4ef81fa6d0aa..1fe6c7286019ef8044177ec4164d3e12
 +Current maintainer-only applied differences: [patches](patches/README.md).
 diff --git a/README.ru.md b/README.ru.md
 new file mode 100644
-index 0000000000000000000000000000000000000000..d7cf789dd56934e26d618625371ec03838d2fef7
+index 0000000000000000000000000000000000000000..4a3de8f506a15c1b96037974d75376e5f48706ca
 --- /dev/null
 +++ b/README.ru.md
 @@ -0,0 +1,36 @@
@@ -180,7 +227,7 @@ index 0000000000000000000000000000000000000000..d7cf789dd56934e26d618625371ec038
 +
 +Неофициальный форк: проверенные исправления для агентов/MCP и дополненный русский интерфейс. Один актуальный ZIP + Install.cmd.
 +
-+[Upstream](https://github.com/open-webui/open-terminal) · [Release](https://github.com/aktalascloud/open-terminal-ivybridge-avx1/releases/latest) · [Patches](.avx1/PATCHES.json)
++[Upstream](https://github.com/open-webui/open-terminal) · [Release](https://github.com/aktalascloud/open-terminal-ivybridge-avx1/releases/latest) · [Patches](patches/README.md)
 +
 +Official 0.16.1 отключает рекурсивное наблюдение вне Git, сохраняя наблюдение Git и метаданных рабочих деревьев. Защищённый health и независимый запуск сервиса сохранены.
 +

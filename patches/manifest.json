@@ -1,10 +1,11 @@
 {
   "schema": 1,
+  "grouping_version": 2,
   "ownership": "applied-downstream-only",
   "project": "terminal",
   "upstream": "2d22dc9a1b5b121f189be7a3c1bcaba9d677b491",
-  "snapshot_source": "0bb9fee878cc9f9b0c11cf93572b20575b836e37",
-  "downstream_tree_without_patches": "96c06c2b2190332a92ffc91948a1729ee2964df3",
+  "snapshot_source": "896c7841e824b481d428b228168eaf65f9c0ff83",
+  "downstream_tree_without_patches": "eab62cd7ccd9fb80e0d3f6737e24e361619ee879",
   "groups": [
     {
       "patch": "01-runtime.patch",
@@ -12,7 +13,6 @@
       "paths": [
         ".dockerignore",
         ".python-version",
-        "LICENSE",
         "dev.sh",
         "entrypoint-openshift.sh",
         "open_terminal/__init__.py",
@@ -36,7 +36,7 @@
         "open_terminal/utils/skills.py",
         "pyproject.toml"
       ],
-      "sha256": "3a595de9e71027c2e1787baab1922d29c063186e1552f5828aa04fd3469226de"
+      "sha256": "7121c5b6114078256e12c2cf7bf33bd7bd7d1555c48e76eefc278ef79ea85bb2"
     },
     {
       "patch": "02-build.patch",
@@ -85,21 +85,22 @@
       "description": "Our fork documentation, notices and qualification evidence / Наши описания форка, уведомления и доказательства квалификации.",
       "paths": [
         ".avx1/measurements/latest.json",
+        "LICENSE",
         "README.md",
         "README.ru.md",
         "SECURITY.md",
         "docs/configuration.md"
       ],
-      "sha256": "e973615ad78dc79d272b7e2c36bdcd15cb291f854e08907843c5b839b0af2974"
+      "sha256": "fdd4fb679a350078cc12a756f4f89fa610b27b0941e81555da767172bcd5f079"
     }
   ],
   "files": {
-    "01-runtime.patch": "3a595de9e71027c2e1787baab1922d29c063186e1552f5828aa04fd3469226de",
+    "01-runtime.patch": "7121c5b6114078256e12c2cf7bf33bd7bd7d1555c48e76eefc278ef79ea85bb2",
     "02-build.patch": "51c1882ace96d12c409f59e7d77f428f0565d0c8e5f7f0de3e019a7104f8af45",
     "03-tests.patch": "d538a7df4702059f937371686a9145a7dcfc3fdb3ec8ee9b1c71ee81ca504a22",
-    "04-documentation.patch": "e973615ad78dc79d272b7e2c36bdcd15cb291f854e08907843c5b839b0af2974",
+    "04-documentation.patch": "fdd4fb679a350078cc12a756f4f89fa610b27b0941e81555da767172bcd5f079",
     ".gitattributes": "705fd4d6451a31d36b3df7de96f83f30ac976c9b4a6d1e51671d8e2f33e2d0da",
     "series": "0de3cc8bf7284c341fd9a7217a5cc598d813b5a95bdebb6584f9a9c790128ada",
-    "README.md": "c2f3c139d203840fe80db474f3a0e354dba32a62c79c41e2e57b4bfc4762a1cf"
+    "README.md": "280841ad3cb2656fd12eed7f5c40c5ce7977c43fd13ca00a00aa4da4c15dbfe1"
   }
 }
