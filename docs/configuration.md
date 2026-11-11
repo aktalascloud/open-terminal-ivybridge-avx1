@@ -73,9 +73,10 @@ your browser and other tabs open. Personal mode requires single-user operation.
 Chromium's sandbox is enabled by default outside Docker. All published Docker image
 variants set `OPEN_TERMINAL_BROWSER_NO_SANDBOX=true` so Browser can start under
 Docker's default security restrictions when Chromium is installed. This applies to
-both managed Browser tabs and Chromium launched from the Linux Desktop in the full
-Docker image. Container isolation remains unchanged, but Chromium's own sandbox
-no longer protects files and processes inside the container from a browser exploit.
+managed Browser tabs, and in the full Docker image also to Chromium launched from
+the Linux Desktop or from commands. Container isolation remains unchanged, but
+Chromium's own sandbox no longer protects files and processes inside the container
+from a browser exploit.
 
 To enable Chromium's sandbox in Docker, pass
 `-e OPEN_TERMINAL_BROWSER_NO_SANDBOX=false` when creating the container; the runtime
@@ -109,6 +110,40 @@ Set `OPEN_TERMINAL_FILE_BROWSER_ROOT` to:
 | `filesystem` | Opt out and report no visual root metadata |
 
 This is a UI hint for clients. It does not restrict terminal commands or file APIs.
+
+## Start Directory
+
+Set `OPEN_TERMINAL_START_DIR` to choose where every session starts: new shells, commands
+run without a `cwd`, and the working directory `GET /files/cwd` reports before a client
+changes it. Directories a client sets for a session still take precedence.
+
+| Value | Behavior |
+|---|---|
+| unset or `~` | Default. Start in the home directory |
+| `~/project` or `project` | Start in a folder inside home |
+| `/home/user/project` | An absolute path, used only if it is inside home |
+
+Paths outside home are ignored, because a managed terminal keeps only its home folder
+between restarts. The folder is created at startup if it doesn't exist.
+
+## Setup Script
+
+Set `OPEN_TERMINAL_SETUP_SCRIPT` to a shell script that runs each time the server starts,
+before it accepts requests. It runs in the start directory as the terminal user, with
+`bash -l -e` (or `sh -e` when bash isn't installed), so it stops at the first failing
+command. Open Terminal's own `OPEN_TERMINAL_*` settings, including the API key, are not
+passed to it.
+
+```bash
+test -d app || git clone https://github.com/acme/app app
+cd app && npm install
+```
+
+Only the home folder survives a restart, so write the script to be safe to run again.
+Output goes to `~/.open-terminal/setup.log`. A failing script does not stop the server:
+`GET /system/info` reports `setup.status` as `failed` with the exit code and the end of
+the log. Multi-user servers skip the setup script. Because the server isn't ready until
+the script finishes, keep it within your orchestrator's start timeout.
 
 ## External Workspace Storage
 

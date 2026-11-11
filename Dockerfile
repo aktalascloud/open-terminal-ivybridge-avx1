@@ -1,6 +1,6 @@
 # Pin to a specific patch version for reproducible builds.
 # To pick up security patches, bump this version and rebuild.
-FROM python:3.12.13 AS base
+FROM python:3.12.16 AS base
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     # Core utilities
@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Editors
     vim nano \
     # Version control
-    git \
+    git gh \
     # Build tools
     build-essential cmake make \
     # Scripting & languages
@@ -50,6 +50,7 @@ RUN curl -fsSL https://get.docker.com | sh
 WORKDIR /app
 
 RUN pip install --no-cache-dir \
+    uv \
     numpy pandas scipy scikit-learn \
     matplotlib seaborn plotly \
     jupyter ipython \
@@ -116,6 +117,38 @@ RUN npm install --global --prefix /usr/local --include=optional \
 ENV DISABLE_AUTOUPDATER=1
 USER user
 RUN codex --version && claude --version
+
+# CUDA development tools and GPU-enabled PyTorch share the full environment.
+FROM base AS cuda
+
+USER root
+RUN set -eux; \
+    case "$(dpkg --print-architecture)" in \
+        amd64) cuda_arch=x86_64 ;; \
+        arm64) cuda_arch=sbsa ;; \
+        *) echo "Unsupported CUDA architecture" >&2; exit 1 ;; \
+    esac; \
+    . /etc/os-release; \
+    curl -fsSL "https://developer.download.nvidia.com/compute/cuda/repos/debian${VERSION_ID}/${cuda_arch}/cuda-keyring_1.1-1_all.deb" -o /tmp/cuda-keyring.deb; \
+    dpkg -i /tmp/cuda-keyring.deb; \
+    rm /tmp/cuda-keyring.deb; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends cuda-toolkit-13-2=13.2.2-1; \
+    rm -rf /var/lib/apt/lists/*
+
+RUN pip install --no-cache-dir torch==2.14.1+cu132 \
+    --index-url https://download.pytorch.org/whl/cu132
+
+ENV CUDA_HOME=/usr/local/cuda
+ENV PATH="/usr/local/cuda/bin:${PATH}"
+ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:/usr/local/nvidia/lib:/usr/local/nvidia/lib64
+ENV NVIDIA_VISIBLE_DEVICES=all
+ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility
+ENV NVIDIA_REQUIRE_CUDA="cuda>=13.2"
+
+USER user
+RUN nvcc --version \
+    && python -c "import torch; assert torch.version.cuda == '13.2', torch.version.cuda"
 
 # Keep an ordinary `docker build .` equivalent to the existing full image.
 FROM base AS default

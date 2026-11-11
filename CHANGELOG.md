@@ -4,6 +4,38 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.17.7] - 2026-11-10
+
+### Added
+
+- You can set where every session starts with `OPEN_TERMINAL_START_DIR`, such as `~/app`. New shells and commands open there, and so does the file browser, unless a client picks another folder for the session. The folder must be inside home, and it's created at startup if it's missing.
+- You can run a setup script each time the terminal starts with `OPEN_TERMINAL_SETUP_SCRIPT`, for example to clone a repository and install its dependencies. It runs in the start directory before the server accepts requests. If it fails, the terminal still starts, and system info shows the exit code and the end of `~/.open-terminal/setup.log`.
+
+## [0.17.6] - 2026-11-09
+
+### Fixed
+
+- Fixed HTML previews showing "File not found" on Windows even when the assistant could read the same file. Pages stored on Windows drives now load from the correct location, along with their linked stylesheets and images. If you use Tether, update its Open Terminal installation to get this fix.
+
+## [0.17.5] - 2026-11-08
+
+### Added
+
+- Added a `cuda` Docker image with the full Open Terminal toolkit, CUDA development tools, and GPU-enabled PyTorch. You can compile GPU programs and run PyTorch workloads on a compatible NVIDIA GPU when Docker has access to it.
+- The full, agents, and cuda Docker images now include GitHub CLI (`gh`) for working with repositories, issues, and pull requests, plus `uv` and `uvx` for installing Python packages and running Python tools. Rebuild or update your image to get them.
+- Apps launched by assistant commands can now open windows on your running Linux Desktop. For example, asking the assistant to launch a browser can show its window in the Desktop tab. Open the desktop first; running a command does not start it automatically.
+
+### Fixed
+
+- Fixed Chromium closing immediately when launched from a command in the Docker image, even though it worked from the Desktop. Commands, notebooks, and coding agents now honor the same browser setting already used by the Desktop.
+
+## [0.17.4] - 2026-11-07
+
+### Added
+
+- Added support for the System info window in Open WebUI's terminal menu. Open it beside a terminal connection to check CPU and memory use, used and free disk space, how long the machine has been running, network addresses, and the programs using the most CPU or memory. Requires an updated Open WebUI.
+- System info uses detected container CPU and memory limits when available. Disk space is measured on the drive containing the terminal's current folder. In multi-user mode, the program list shows only the current user's processes.
+
 ## [0.17.3] - 2026-11-07
 
 ### Added
