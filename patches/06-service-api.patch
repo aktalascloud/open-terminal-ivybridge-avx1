@@ -1,9 +1,9 @@
 diff --git a/.avx1/test_cli_cors.py b/.avx1/test_cli_cors.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..614bd756a2ae951cdc4724d88900df0940043cce
+index 0000000000000000000000000000000000000000..9ae0b9722bc8624afcf67d9079684aa09737caa2
 --- /dev/null
 +++ b/.avx1/test_cli_cors.py
-@@ -0,0 +1,99 @@
+@@ -0,0 +1,105 @@
 +"""Isolated CLI CORS regressions; no server or host config is accessed."""
 +import os
 +from pathlib import Path
@@ -31,6 +31,9 @@ index 0000000000000000000000000000000000000000..614bd756a2ae951cdc4724d88900df09
 +            values = {key: value for key, value in os.environ.items() if not key.upper().startswith('OPEN_TERMINAL_')}
 +            values.update(OPEN_TERMINAL_API_KEY_FILE=str(secret), XDG_CONFIG_HOME=str(root / 'xdg'))
 +            fake_env = types.ModuleType('open_terminal.env')
++            fake_env.MULTI_USER = False
++            fake_env.SETUP_SCRIPT = ""
++            fake_env.START_DIR = ""
 +            fake_env.UVICORN_LOOP = 'auto'
 +            fake_env.UVICORN_TIMEOUT_KEEP_ALIVE = None
 +            received = []
@@ -61,6 +64,9 @@ index 0000000000000000000000000000000000000000..614bd756a2ae951cdc4724d88900df09
 +            environment_values.update(environment or {})
 +            received = []
 +            fake_env = types.ModuleType('open_terminal.env')
++            fake_env.MULTI_USER = False
++            fake_env.SETUP_SCRIPT = ""
++            fake_env.START_DIR = ""
 +            fake_env.UVICORN_LOOP = 'auto'
 +            fake_env.UVICORN_TIMEOUT_KEEP_ALIVE = None
 +            with patch.dict(os.environ, environment_values, clear=True), \
