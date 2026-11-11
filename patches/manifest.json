@@ -3,9 +3,9 @@
   "grouping_version": 3,
   "ownership": "applied-downstream-only",
   "project": "terminal",
-  "upstream": "2d22dc9a1b5b121f189be7a3c1bcaba9d677b491",
-  "snapshot_source": "7ed1fef7b07b5997e5e71bbf9fd1a18da713eb4b",
-  "downstream_tree_without_patches": "eab62cd7ccd9fb80e0d3f6737e24e361619ee879",
+  "upstream": "47fbd8f0f6ee632dc91500ece877a40b64014941",
+  "snapshot_source": "da1a3b08d27d56f2a3805103828fe789600aa9ab",
+  "downstream_tree_without_patches": "fb21da0cffde8983e78a2507a6d6ec7265022a25",
   "groups": [
     {
       "patch": "01-credential-isolation.patch",
@@ -19,7 +19,7 @@
         "open_terminal/utils/git.py",
         "open_terminal/utils/git_line_stats.py"
       ],
-      "sha256": "cb0b07d73a60399c2efd98d666f803cd4859331c8c64dd5c9100205ed742baaa"
+      "sha256": "fe318f6bc4f21df6a6c0888e37154df440661eced518e92b70ce270da5e4ce04"
     },
     {
       "patch": "02-bounded-search.patch",
@@ -78,7 +78,7 @@
         "open_terminal/utils/port.py",
         "open_terminal/utils/runner.py"
       ],
-      "sha256": "84f8158dab870b1351fb568d6583bea642dc4c9a37bd36f64e72bd9a5de9a768"
+      "sha256": "25018fc88706697682d63c1083ca12afe363ba7901d22f0ee8843a273fde7c8d"
     },
     {
       "patch": "07-localization-checks.patch",
@@ -98,7 +98,7 @@
         "entrypoint-openshift.sh",
         "pyproject.toml"
       ],
-      "sha256": "3707e1cc0f367bc8b8c839f95a92e543d04e1215dba25816a5c4b4b925408178"
+      "sha256": "79e5d7409800253bf04ee18548d3c92dcfd68751b4b8a920f94f6cb29e7d7eb6"
     },
     {
       "patch": "09-portable-install.patch",
@@ -127,7 +127,7 @@
         ".github/workflows/release.yml",
         ".gitignore"
       ],
-      "sha256": "3e1e8a4154cc7e319eec33dfd69730be15d175a2b64a34b6a2f32405b7e2afeb"
+      "sha256": "cfa3f9e8e9bccfc09bbfad9e96e227cca4983bb04efe49a6a3571a311932d341"
     },
     {
       "patch": "11-project-docs.patch",
@@ -138,7 +138,7 @@
         "README.ru.md",
         "SECURITY.md"
       ],
-      "sha256": "7bb18646865d90d98d86b5a9281ed85f1193a372e7b3aadb0e48d82b2bc8efdb"
+      "sha256": "24a73296937ca56eee176942076e2ab2be3cd001760e2e62d17e1d32089b66fd"
     },
     {
       "patch": "12-fork-records.patch",
@@ -151,20 +151,20 @@
     }
   ],
   "files": {
-    "01-credential-isolation.patch": "cb0b07d73a60399c2efd98d666f803cd4859331c8c64dd5c9100205ed742baaa",
+    "01-credential-isolation.patch": "fe318f6bc4f21df6a6c0888e37154df440661eced518e92b70ce270da5e4ce04",
     "02-bounded-search.patch": "b15628743df07a83affda512ffcd51ca616b0cbb1b4dc7c9b20c514fa13d2dd8",
     "03-document-comparison.patch": "54b95662b86b3e934c4f0d4ce4b07886b68de123e157f63ea583147c004e0cbd",
     "04-chrome-proxy.patch": "7091d83abc0992c5e570b2cc22c3c54cec75f6d27ac471cb2160cdde40895306",
     "05-skills-paths.patch": "e0aa39a71281670d60cedb56a48f2c5acbab0d47861b5542e4205c52484d4665",
-    "06-service-api.patch": "84f8158dab870b1351fb568d6583bea642dc4c9a37bd36f64e72bd9a5de9a768",
+    "06-service-api.patch": "25018fc88706697682d63c1083ca12afe363ba7901d22f0ee8843a273fde7c8d",
     "07-localization-checks.patch": "f278c64394461714bfa19007835cbacbf07beaff1d30f5451f2b635aec51c921",
-    "08-package-runtime.patch": "3707e1cc0f367bc8b8c839f95a92e543d04e1215dba25816a5c4b4b925408178",
+    "08-package-runtime.patch": "79e5d7409800253bf04ee18548d3c92dcfd68751b4b8a920f94f6cb29e7d7eb6",
     "09-portable-install.patch": "a5f4c34a7c7c47f8f56c4bebdee4b03422237c66a6b0445f57c1f5d3aceeb4c9",
-    "10-ci-build.patch": "3e1e8a4154cc7e319eec33dfd69730be15d175a2b64a34b6a2f32405b7e2afeb",
-    "11-project-docs.patch": "7bb18646865d90d98d86b5a9281ed85f1193a372e7b3aadb0e48d82b2bc8efdb",
+    "10-ci-build.patch": "cfa3f9e8e9bccfc09bbfad9e96e227cca4983bb04efe49a6a3571a311932d341",
+    "11-project-docs.patch": "24a73296937ca56eee176942076e2ab2be3cd001760e2e62d17e1d32089b66fd",
     "12-fork-records.patch": "cead6825ce0e6a170d29a6980bcbb05c3d67ca34328b5d021feddf18e9ab58de",
     ".gitattributes": "705fd4d6451a31d36b3df7de96f83f30ac976c9b4a6d1e51671d8e2f33e2d0da",
     "series": "94cec36ddda10ff816f5c448a4f40e3ea89dc28d2572ae3ec150b373a387ff94",
-    "README.md": "7f4f2d1b827e772fcc2f87eff3d8ce76f6703ecd692682c5c16215f12b5665de"
+    "README.md": "dfa84afdacc28b5b40fd2bc69ec2ac4b3b5faee2a1ce5cce1eaadb1480bdacf2"
   }
 }

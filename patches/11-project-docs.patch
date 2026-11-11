@@ -46,10 +46,10 @@ index 16464a59e72f7b07c4f2ce3f6825ed101976ebdd..e554af0e0e71b2b3c222c18ae3821954
 +OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 +SOFTWARE.
 diff --git a/README.md b/README.md
-index 7a4651c00eaa1bb0b1a3421358ec4ef81fa6d0aa..165139de494e832889f649d52c1098f6065c0121 100644
+index 5dace19c656b8ad51e44e94ae8e5eb585d93ec8c..165139de494e832889f649d52c1098f6065c0121 100644
 --- a/README.md
 +++ b/README.md
-@@ -1,135 +1,36 @@
+@@ -1,136 +1,36 @@
 -# Open Terminal
 +# Open Terminal AVX1
  
@@ -91,6 +91,7 @@ index 7a4651c00eaa1bb0b1a3421358ec4ef81fa6d0aa..165139de494e832889f649d52c1098f6
 -| --- | --- |
 -| `latest` | Full toolkit: Python, Node.js, build tools, browser, desktop, and document tools |
 -| `agents` | Everything in `latest`, plus the latest Codex and Claude Code CLIs |
+-| `cuda` | Full environment with CUDA toolkit and GPU-enabled PyTorch |
 -| `slim` | Minimal Debian environment with git, curl, and jq |
 -| `alpine` | Minimal Alpine environment with git, curl, and jq |
 -| `openshift` | Minimal image for OpenShift restricted non-root policies |
