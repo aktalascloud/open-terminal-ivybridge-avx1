@@ -1,160 +1,3 @@
-diff --git a/.avx1/Install.cmd b/.avx1/Install.cmd
-new file mode 100644
-index 0000000000000000000000000000000000000000..fb74de66958002bd7a4b5cdc928213536435b175
---- /dev/null
-+++ b/.avx1/Install.cmd
-@@ -0,0 +1,4 @@
-+@echo off
-+setlocal
-+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Install.ps1" %*
-+exit /b %errorlevel%
-diff --git a/.avx1/Install.ps1 b/.avx1/Install.ps1
-new file mode 100644
-index 0000000000000000000000000000000000000000..6b2c16b51ad96e0b21d45bf7c9db8c59438cabdd
---- /dev/null
-+++ b/.avx1/Install.ps1
-@@ -0,0 +1,46 @@
-+param([string]$Destination = '', [switch]$CheckOnly, [switch]$ExperimentalNativeJson)
-+$ErrorActionPreference = 'Stop'
-+Add-Type -AssemblyName System.IO.Compression.FileSystem
-+$manifest = Get-Content -Raw -LiteralPath "$PSScriptRoot\manifest.json" | ConvertFrom-Json
-+if (-not $Destination) { $Destination = Join-Path $env:LOCALAPPDATA ($manifest.project + '-avx1-' + $manifest.channel) }
-+foreach ($item in $manifest.files) {
-+    $file = Join-Path $PSScriptRoot $item.path
-+    if ((Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLowerInvariant() -ne $item.sha256) { throw "Checksum mismatch: $($item.path)" }
-+}
-+if ($CheckOnly) { Write-Output 'Package checksums OK'; exit 0 }
-+if ($manifest.project -eq 'conduit') {
-+    Write-Output 'Install the APK on an Android ARM64 device. The fork uses its own application ID and signing key.'
-+    exit 0
-+}
-+if ($manifest.project -eq 'desktop') {
-+    $application = Join-Path $PSScriptRoot 'desktop'
-+    New-Item -ItemType Directory -Path $Destination -Force | Out-Null
-+    Copy-Item -LiteralPath $application -Destination $Destination -Recurse -Force
-+    Write-Output "Launch: $Destination\desktop\open-webui.exe"
-+    exit 0
-+}
-+if (Test-Path -LiteralPath (Join-Path $Destination 'python')) { throw 'Choose a new empty destination to preserve existing data.' }
-+New-Item -ItemType Directory -Path $Destination -Force | Out-Null
-+$runtimeZip = Join-Path $Destination 'python-runtime.tar.gz'
-+Invoke-WebRequest -UseBasicParsing -Uri $manifest.python.url -OutFile $runtimeZip
-+if ((Get-FileHash -LiteralPath $runtimeZip -Algorithm SHA256).Hash.ToLowerInvariant() -ne $manifest.python.sha256) { throw 'Python checksum mismatch' }
-+$runtime = Join-Path $Destination 'python'
-+& tar.exe -xzf $runtimeZip -C $Destination
-+if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath (Join-Path $runtime 'python.exe'))) { throw 'Python extraction failed' }
-+Remove-Item -LiteralPath $runtimeZip
-+$site = Join-Path $runtime 'Lib\site-packages'
-+New-Item -ItemType Directory -Path $site -Force | Out-Null
-+$pip = Get-ChildItem -LiteralPath "$PSScriptRoot\bootstrap" -Filter 'pip-*.whl' | Select-Object -First 1
-+if (-not (Test-Path -LiteralPath (Join-Path $site 'pip'))) { [IO.Compression.ZipFile]::ExtractToDirectory($pip.FullName, $site) }
-+$python = Join-Path $runtime 'python.exe'
-+$wheels = @(Get-ChildItem -LiteralPath "$PSScriptRoot\wheels" -Filter '*.whl' | ForEach-Object FullName)
-+if ($manifest.native_json.default -eq 'stock' -and -not $ExperimentalNativeJson) {
-+    $wheels = @($wheels | Where-Object { [IO.Path]::GetFileName($_) -notlike 'orjson-*.whl' })
-+}
-+& $python -m pip install --no-cache-dir --disable-pip-version-check --no-input @wheels
-+if ($LASTEXITCODE -ne 0) { throw 'Dependency installation failed' }
-+Copy-Item -LiteralPath "$PSScriptRoot\manifest.json" -Destination $Destination
-+$entry = if ($manifest.project -eq 'webui') { 'from open_webui import app; app()' } else { 'from open_terminal.cli import main; main()' }
-+$launch = @('@echo off', 'setlocal', 'cd /d "%~dp0"', 'if not exist data mkdir data', 'set "DATA_DIR=%~dp0data"', 'set "HF_HOME=%~dp0models"', ('"%~dp0python\python.exe" -c "' + $entry + '" ' + $(if ($manifest.project -eq 'webui') { 'serve --host 127.0.0.1 --port 8080' } else { 'run --host 127.0.0.1 --port 8000' })), 'exit /b %errorlevel%')
-+[IO.File]::WriteAllLines((Join-Path $Destination 'Start.cmd'), $launch, [Text.Encoding]::ASCII)
-+Write-Output "Installed. Launch $Destination\Start.cmd. Models download on demand from Hugging Face."
-diff --git a/.avx1/PATCHES.json b/.avx1/PATCHES.json
-new file mode 100644
-index 0000000000000000000000000000000000000000..0471c769077e35e1dcbea500ef3f69690dd17d41
---- /dev/null
-+++ b/.avx1/PATCHES.json
-@@ -0,0 +1,89 @@
-+[
-+  {
-+    "id": "TERM-001",
-+    "description": "Strip inherited OPEN_TERMINAL_* credentials from shells, execution and notebook kernels; preserve application environment.",
-+    "source": "Adapted from Dmitry Rubtsov (mazzz1y), PR #128; extended to case-insensitive names and notebooks.",
-+    "url": "https://github.com/open-webui/open-terminal/pull/128"
-+  },
-+  {
-+    "id": "TERM-002",
-+    "description": "Do not pass host/port to FastMCP stdio transport.",
-+    "source": "Minimal transport fix discussed in PR #120; HTTP authentication changes not imported.",
-+    "url": "https://github.com/open-webui/open-terminal/pull/120"
-+  },
-+  {
-+    "id": "TERM-003",
-+    "description": "Pin shared API/runtime dependencies to the tested Open WebUI-compatible versions; avoid upgrading its FastAPI/Pydantic during Terminal installation.",
-+    "source": "Verified common-runtime compatibility."
-+  },
-+  {
-+    "id": "TERM-004",
-+    "description": "Bound grep match previews to prevent LLM context flooding; preserve long JSON/minified-code matches and center the preview on the match. Do not silently skip long lines.",
-+    "source": "Adapted from the problem and output cap in upstream PR #144; long-line matching is retained.",
-+    "url": "https://github.com/open-webui/open-terminal/pull/144"
-+  },
-+  {
-+    "id": "TERM-005",
-+    "description": "Avoid copying a whole multi-megabyte line when building a bounded grep preview; preserve exact Unicode/trailing-EOL output. CPU measurements use the real grep API.",
-+    "source": "owner-authored; measured on Ivy Bridge"
-+  },
-+  {
-+    "id": "TERM-014",
-+    "description": "Upstream0.14.7 file-creation dates; pypdf6.21.4 security update. Existing delivery/grep/MCP fixes retained.",
-+    "urls": [],
-+    "verification": "Targeted regressions plus exact-source package/privacy/security/startup gates; final CI receipt records actual scope."
-+  },
-+  {
-+    "id": "TERM-015",
-+    "description": "PR150 adapted to streamed log responses: keep unread completed results30min, start5min expiry only after HTTP response completion; protect all retained process logs from the existing disk sweep. Existing orphan-log cleanup already covers PR149; configurable keep-alive already exists.",
-+    "url": "https://github.com/open-webui/open-terminal/pull/150",
-+    "verification": "Actual cleanup/response helper regressions: unread/running/expired records, completed delivery and preserved response cleanup."
-+  },
-+  {
-+    "id": "TERM-016",
-+    "description": "PR193 CORS precedence: honor TOML without overriding explicit CLI/env origins; reject invalid config types. PR116 narrow adaptation: add MCP --api-key override before deferred env load; reuse existing env/TOML/_FILE resolution and preserve stdio/HTTP guards.",
-+    "urls": [
-+      "https://github.com/open-webui/open-terminal/pull/193",
-+      "https://github.com/open-webui/open-terminal/pull/116"
-+    ],
-+    "upstream_heads": {
-+      "193": "b3510f7e2975bbd985eebe544a06921564819ec9",
-+      "116": "8fa2930a0b868882c04eebed7d1c8c34bc30e8d9"
-+    },
-+    "verification": "12 CORS and12 MCP CLI scenarios with synthetic TOML/env/file sources; build recipe runs both regressions. No auth guard or API-key storage changes."
-+  },
-+  {
-+    "id": "TERM-MAINSTREAM-016",
-+    "description": "Merge official main6444534: owned browser/Chrome/desktop APIs, bounded frames, fs/port/process WebSockets and Git endpoints. Preserve CORS/MCP CLI fixes, common dependency pins, bounded grep and delivery-aware log retention. Restart a completed shared port scanner for new viewers; use shared constant-time API-key matching for MCP.",
-+    "source": "https://github.com/open-webui/open-terminal/commit/6444534c8aa4bd8acf561bf62cd9eef3e29bd24f",
-+    "verification": "15 new isolated API/log/port/frame/MCP/CDP cases;12 CORS and12 MCP CLI scenarios;5 existing behavior and3 retention tests. No real browser/screen/input/audio action and no complete hardware or packaged startup proof.",
-+    "dependency_scope": "watchfiles1.3.0/websockets15.0.1/Pillow13.0.0 match the tested shared runtime. New host capture dependencies remain upstream constraints, pending fresh package audit/qualification; vendor wheels are not declared locally rebuilt.",
-+    "privacy": "Windows Chrome uses a dedicated managed profile and loopback CDP with proxy=None, without inherited OPEN_TERMINAL_* credentials. Browser proxy strips API-key/cookie/x-user request headers.",
-+    "license_scope": "Accepted from immutable official Open Terminal MIT source; original copyright and Computer-origin attribution header retained. No Computer binary/service imported."
-+  },
-+  {
-+    "id": "TERM-SEARCH-192",
-+    "description": "PR192 adapted: read regular files only, skip pseudo-filesystem roots in rg, stay on the search root filesystem and exclude dev/proc/sys when scanning filesystem root. Explicitly selected mounts remain searchable; existing ACL checks retained.",
-+    "url": "https://github.com/open-webui/open-terminal/pull/192",
-+    "upstream_head": "726c705dcabe83cb869771e701bb93466f5f31b2",
-+    "verification": "6 isolated stat/mount/ACL/rg guard regressions; Linux device files not opened on the Windows host."
-+  },
-+  {
-+    "id": "TERM-SEARCH-178",
-+    "description": "Select independent PR178 fixes: original-text case-insensitive matching preserves Unicode/UTF16 columns; enforce the existing1MiB content-search cap with or without ripgrep. Reuse the existing bounded match preview for match_files, retaining discoverability, original column and an explicit excerpt_truncated flag.",
-+    "url": "https://github.com/open-webui/open-terminal/pull/178",
-+    "upstream_head": "57836d2af15f1109a976033b43fdaf64458dd562",
-+    "verification": "4 actual HTTP-route tests cover Unicode/UTF16 on both fake-RG and fallback paths, size gating and long-line preview. Immutable PR review has6 independent repros in maintenance. No real RG/capture/vendor request claim.",
-+    "not_imported": "Broad response-byte budgets: first oversized item/log record is retained above the configured budget, escaped display paths and post-fit cursor metadata can overrun the cap. Existing streaming complete-file/log behavior remains; no claim of globally bounded model-facing output. Issue177 follow-up remains open."
-+  },
-+  {
-+    "id": "TERM-AUTH-HEALTH",
-+    "description": "Authenticated side-effect-free /api/health for independently managed clients. Retain the public /health contract; exclude the new route from model-facing OpenAPI tools. No process/filesystem/session lookup or cleanup in the probe.",
-+    "verification": "Focused real TestClient auth/401/status/OpenAPI check; required by the corresponding Desktop external-Terminal adapter."
-+  },
-+  {
-+    "id": "TERM-GIT-IDENTITY",
-+    "description": "Git/gh launched as another OS user cannot inherit the server GitHub token, credential directories or SSH/GPG agents. Preserve the ordinary single-user signed-in CLI and application environment. Resolve executables before entering a repository cwd, and run untracked-file counting through an isolated stdlib-only worker instead of importing from repository/PYTHONPATH. Existing realpath/actor ACL and literal pathspec guards retained.",
-+    "verification": "6 synthetic environment/process/path contracts including a real isolated stdlib worker against hostile local module names; no GitHub request, login or real actor switch.5 additional mocked browser proxy contracts cover header/cookie isolation, capabilities, redirects and bounded resource cleanup."
-+  }
-+]
 diff --git a/.avx1/android_sdk.py b/.avx1/android_sdk.py
 new file mode 100644
 index 0000000000000000000000000000000000000000..4a8a86fefb665eaf4d138adfb137eb8c332220c8
@@ -197,89 +40,6 @@ index 0000000000000000000000000000000000000000..4a8a86fefb665eaf4d138adfb137eb8c
 +    manager = sdk / "cmdline-tools" / pins["commandline_tools"].split(";", 1)[1] / "bin/sdkmanager"
 +    subprocess.run([str(manager), "--licenses"], input="y\n" * 100, text=True, check=True)
 +    subprocess.run([str(manager), pins["platform"], pins["build_tools"], pins["ndk"]], check=True)
-diff --git a/.avx1/bench_search_cpu.py b/.avx1/bench_search_cpu.py
-new file mode 100644
-index 0000000000000000000000000000000000000000..aa7d17ecc083381fddabc8985e7c0c9822dc132b
---- /dev/null
-+++ b/.avx1/bench_search_cpu.py
-@@ -0,0 +1,77 @@
-+"""Measure preview construction and the real authenticated grep API on this CPU."""
-+import argparse
-+import hashlib
-+import importlib.util
-+import json
-+import os
-+from pathlib import Path
-+import platform
-+import random
-+import statistics
-+import tempfile
-+import time
-+from unittest.mock import patch
-+
-+OLD=r'''def old_preview(line, match_start):
-+    content=line.rstrip("\r\n")
-+    if len(content)<=300:return content
-+    left=max(0,match_start-100);right=min(len(content),left+300);left=max(0,right-300)
-+    return (("…" if left else "")+content[left:right]+("…" if right<len(content) else "")+f" [truncated; columns {left+1}-{right} of {len(content)}]")
-+'''
-+
-+def main(output):
-+    root=Path(__file__).resolve().parents[1]
-+    Path(output).parent.mkdir(parents=True,exist_ok=True)
-+    spec=importlib.util.spec_from_file_location('preview_candidate',root/'open_terminal/utils/search_preview.py')
-+    mod=importlib.util.module_from_spec(spec);spec.loader.exec_module(mod);current=mod.bounded_match_content
-+    namespace={};exec(OLD,namespace);old=namespace['old_preview']
-+    r=random.Random(19)
-+    for length in [0,1,298,299,300,301,302,1000,2000006]:
-+        for ending in ('','\n','\r\n','\r\r\n'):
-+            text=('жяx'*(length//3+1))[:length]+ending
-+            for location in (0,length//2,max(0,length-1)):assert current(text,location)==old(text,location)
-+    line='a'*1000000+'needle'+'b'*1000000+'\n';samples={'released_preview':[],'slice_only_preview':[]}
-+    for turn in range(10):
-+        for label,fn in ([('released_preview',old),('slice_only_preview',current)] if turn%2==0 else [('slice_only_preview',current),('released_preview',old)]):
-+            for _ in range(10):fn(line,1000000)
-+            count=1000
-+            while True:
-+                start=time.process_time_ns()
-+                for _ in range(count):fn(line,1000000)
-+                elapsed=time.process_time_ns()-start
-+                if elapsed>=200000000:break
-+                count*=2
-+            samples[label].append(elapsed/count)
-+    result={'cpu':platform.processor(),'scope':'Synthetic 2MB matching line: preview construction CPU time; no LLM inference. Old/released and optimized outputs are identical.',
-+            'semantic_comparisons':108,'input_chars':len(line),'preview_samples_cpu_ns':samples,
-+            'source_sha256':hashlib.sha256((root/'open_terminal/utils/search_preview.py').read_bytes()).hexdigest()}
-+    med={k:statistics.median(v) for k,v in samples.items()};result['preview_cpu_median_ns']=med;result['preview_cpu_time_reduction_percent']=100*(1-med['slice_only_preview']/med['released_preview'])
-+    with tempfile.TemporaryDirectory(prefix='owui-grep-cpu-',dir=Path(output).parent) as folder:
-+        os.environ.update(OPEN_TERMINAL_API_KEY='synthetic-cpu-benchmark',OPEN_TERMINAL_MULTI_USER='false',OPEN_TERMINAL_ENABLE_TERMINAL='false',OPEN_TERMINAL_ENABLE_NOTEBOOKS='false',OPEN_TERMINAL_LOG_DIR=folder,XDG_STATE_HOME=folder,XDG_CONFIG_HOME=folder)
-+        os.environ.pop('OPEN_TERMINAL_API_KEY_FILE',None)
-+        import open_terminal.main as service
-+        from fastapi.testclient import TestClient
-+        path=Path(folder)/'data.json';path.write_text(line,encoding='utf-8')
-+        headers={'Authorization':'Bearer synthetic-cpu-benchmark'};params={'query':'needle','path':str(path)}
-+        timings={'upstream_full_line':[],'released_preview':[],'slice_only_preview':[]};sizes={}
-+        with TestClient(service.app) as client:
-+            assert client.get('/files/grep',params=params).status_code==401
-+            cases=[('upstream_full_line',lambda text,pos:text.rstrip('\r\n')),('released_preview',old),('slice_only_preview',current)]
-+            for turn in range(6):
-+                order=cases if turn%2==0 else list(reversed(cases))
-+                for label,fn in order:
-+                    with patch.object(service,'bounded_match_content',fn):
-+                        probe=client.get('/files/grep',params=params,headers=headers);assert probe.status_code==200
-+                        data=probe.json();assert len(data['matches'])==1 and data['matches'][0]['line']==1 and 'needle' in data['matches'][0]['content'];sizes[label]=len(probe.content)
-+                        start=time.process_time_ns()
-+                        for _ in range(200):
-+                            response=client.get('/files/grep',params=params,headers=headers);assert response.status_code==200
-+                        timings[label].append((time.process_time_ns()-start)/200)
-+        medians={k:statistics.median(v) for k,v in timings.items()};result.update(api_samples_cpu_ns=timings,api_cpu_median_ns=medians,response_bytes=sizes,
-+            api_cpu_time_reduction_vs_upstream_percent=100*(1-medians['slice_only_preview']/medians['upstream_full_line']),
-+            api_cpu_time_reduction_vs_released_percent=100*(1-medians['slice_only_preview']/medians['released_preview']))
-+    Path(output).parent.mkdir(parents=True,exist_ok=True);Path(output).write_text(json.dumps(result,indent=2)+'\n',encoding='utf-8')
-+    print(json.dumps({k:v for k,v in result.items() if 'samples' not in k}))
-+
-+if __name__=='__main__':
-+    parser=argparse.ArgumentParser();parser.add_argument('--output',required=True);args=parser.parse_args();main(args.output)
 diff --git a/.avx1/build.py b/.avx1/build.py
 new file mode 100644
 index 0000000000000000000000000000000000000000..146eaa114b6e48fd5c9e5a69d8dbf218bf56e289
@@ -681,53 +441,6 @@ index 0000000000000000000000000000000000000000..e874280cb0d73c156847d9c271a8253f
 +                scan_bytes(path.read_bytes(), path.name)
 +                archive.write(path, path.relative_to(folder).as_posix())
 +    verify_archive(target)
-diff --git a/.avx1/portable_build.py b/.avx1/portable_build.py
-new file mode 100644
-index 0000000000000000000000000000000000000000..2892e3648ceb500c63c258fd1c5fe22f4fb04a3d
---- /dev/null
-+++ b/.avx1/portable_build.py
-@@ -0,0 +1,41 @@
-+"""Model-independent entry point for the repository's pinned build recipe."""
-+import argparse
-+import datetime as dt
-+import json
-+import os
-+from pathlib import Path
-+import shutil
-+import subprocess
-+import sys
-+
-+ROOT=Path(__file__).resolve().parents[1]
-+def run(*args,capture=False):
-+    result=subprocess.run([str(a) for a in args],cwd=ROOT,check=True,text=True,
-+        stdout=subprocess.PIPE if capture else None,encoding='utf-8')
-+    return result.stdout.strip() if capture else None
-+
-+def main():
-+    parser=argparse.ArgumentParser(description=__doc__)
-+    parser.add_argument('command',choices=['status','build','local'],nargs='?',default='status')
-+    args=parser.parse_args()
-+    project=json.loads((ROOT/'.avx1/project.json').read_text('utf-8'))
-+    git=shutil.which('git')
-+    if not git:raise RuntimeError('Install Git and retry; no LLM is required')
-+    source=run(git,'rev-parse','HEAD',capture=True)
-+    dirty=bool(run(git,'status','--porcelain',capture=True))
-+    if args.command=='status':
-+        print(json.dumps({'project':project['id'],'source':source,'clean':not dirty,
-+            'model_required':False,'recipe':'.avx1/build.py','pins':'.avx1/toolchains.json'}));return
-+    if dirty:raise RuntimeError('Commit/review source changes before building')
-+    day=dt.datetime.now(dt.timezone(dt.timedelta(hours=6))).strftime('%Y%m%d')
-+    if args.command=='local':
-+        os.environ.update(BUILD_CHANNEL='latest',BUILD_DAY=day)
-+        run(sys.executable,ROOT/'.avx1/build.py');return
-+    gh=shutil.which('gh')
-+    if not gh:raise RuntimeError('Install GitHub CLI and run gh auth login once; do not put a token in this project')
-+    remote=run(gh,'api','repos/'+project['repository']+'/git/ref/heads/avx1','--jq','.object.sha',capture=True)
-+    if remote!=source:raise RuntimeError('Published avx1 differs from this source; review and push the exact commit first')
-+    run(gh,'workflow','run','avx1-build.yml','--repo',project['repository'],'--ref','avx1','-f','day='+day)
-+    print('Build dispatched for '+source+'. The workflow performs checks and produces one verified candidate.')
-+
-+if __name__=='__main__':main()
 diff --git a/.avx1/project.json b/.avx1/project.json
 new file mode 100644
 index 0000000000000000000000000000000000000000..63484d4dfe53b039a313012ae4e3dadf349853c4
@@ -747,6 +460,30 @@ index 0000000000000000000000000000000000000000..63484d4dfe53b039a313012ae4e3dadf
 +  "stable_tag": "v0.17.3",
 +  "distribution": "single unified latest"
 +}
+diff --git a/.avx1/test_public_gate.py b/.avx1/test_public_gate.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..47c838c134e28d50bc0af648203721f193559e63
+--- /dev/null
++++ b/.avx1/test_public_gate.py
+@@ -0,0 +1,18 @@
++import unittest
++from common import scan_bytes
++
++
++class PublicGateTests(unittest.TestCase):
++    def test_tailwind_mask_classes_are_not_api_keys(self):
++        scan_bytes(b'.mask-linear-from-transparent-to-transparent{mask-type:luminance}', 'fixture.css')
++
++    def test_real_token_shapes_and_utf16_private_keys_still_fail_closed(self):
++        for prefix, length in ((b'sk-', 48), (b'sk-proj-', 64), (b'ghp_', 40), (b'hf_', 36)):
++            value = b'"' + prefix + b'a' * length + b'"'
++            with self.subTest(prefix=prefix):
++                with self.assertRaises(ValueError): scan_bytes(value, 'credential fixture')
++                with self.assertRaises(ValueError): scan_bytes(value.decode().encode('utf-16-le'), 'UTF16 fixture')
++
++
++if __name__ == '__main__':
++    unittest.main()
 diff --git a/.avx1/toolchains.json b/.avx1/toolchains.json
 new file mode 100644
 index 0000000000000000000000000000000000000000..abdce2f788dcb1c2ea51ec999d5df7368ff420f1
@@ -1115,15 +852,3 @@ index 22130f4d5d6c62d82602ad1d0070f80b248119c7..e0e996ee52ca592550c1cbc41e95a74c
 +*.jks
 +android/key.properties
  .local
-diff --git a/Build.cmd b/Build.cmd
-new file mode 100644
-index 0000000000000000000000000000000000000000..311098f171a4267a97eb5bac33deae4d1301a287
---- /dev/null
-+++ b/Build.cmd
-@@ -0,0 +1,6 @@
-+@echo off
-+setlocal
-+cd /d "%~dp0"
-+where py >nul 2>&1
-+if errorlevel 1 (python .avx1\portable_build.py %*) else (py -3 .avx1\portable_build.py %*)
-+exit /b %errorlevel%

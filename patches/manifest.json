@@ -1,106 +1,170 @@
 {
   "schema": 1,
-  "grouping_version": 2,
+  "grouping_version": 3,
   "ownership": "applied-downstream-only",
   "project": "terminal",
   "upstream": "2d22dc9a1b5b121f189be7a3c1bcaba9d677b491",
-  "snapshot_source": "896c7841e824b481d428b228168eaf65f9c0ff83",
+  "snapshot_source": "7ed1fef7b07b5997e5e71bbf9fd1a18da713eb4b",
   "downstream_tree_without_patches": "eab62cd7ccd9fb80e0d3f6737e24e361619ee879",
   "groups": [
     {
-      "patch": "01-runtime.patch",
-      "description": "Local runtime, integration, security, dependency and platform adaptations / Наши изменения работы, интеграций, безопасности и платформ.",
+      "patch": "01-credential-isolation.patch",
+      "description": "Remove host Git and SSH credentials from other OS users and require Cline discovery opt-in / Изолирует ключи Git и SSH между пользователями ОС и требует явного включения поиска Cline.",
+      "paths": [
+        ".avx1/test_agent_discovery_policy.py",
+        ".avx1/test_git_contracts.py",
+        "open_terminal/agents/discovery.py",
+        "open_terminal/agents/sessions.py",
+        "open_terminal/env.py",
+        "open_terminal/utils/git.py",
+        "open_terminal/utils/git_line_stats.py"
+      ],
+      "sha256": "cb0b07d73a60399c2efd98d666f803cd4859331c8c64dd5c9100205ed742baaa"
+    },
+    {
+      "patch": "02-bounded-search.patch",
+      "description": "Limit filesystem traversal and keep Unicode search previews bounded / Ограничивает обход файлов и размер Unicode-фрагментов поиска.",
+      "paths": [
+        ".avx1/bench_search_cpu.py",
+        ".avx1/test_search_contract.py",
+        ".avx1/test_search_safety.py",
+        "open_terminal/utils/search.py",
+        "open_terminal/utils/search_preview.py"
+      ],
+      "sha256": "b15628743df07a83affda512ffcd51ca616b0cbb1b4dc7c9b20c514fa13d2dd8"
+    },
+    {
+      "patch": "03-document-comparison.patch",
+      "description": "Extract text from office documents and compare files / Извлекает текст из офисных документов и сравнивает файлы.",
+      "paths": [
+        "open_terminal/utils/documents.py",
+        "open_terminal/utils/file_compare.py"
+      ],
+      "sha256": "54b95662b86b3e934c4f0d4ce4b07886b68de123e157f63ea583147c004e0cbd"
+    },
+    {
+      "patch": "04-chrome-proxy.patch",
+      "description": "Adapt the Chrome proxy and verify browser access contracts / Адаптирует прокси Chrome и проверяет правила доступа к браузеру.",
+      "paths": [
+        ".avx1/test_browser_proxy_contracts.py",
+        "open_terminal/browser/chrome.py"
+      ],
+      "sha256": "7091d83abc0992c5e570b2cc22c3c54cec75f6d27ac471cb2160cdde40895306"
+    },
+    {
+      "patch": "05-skills-paths.patch",
+      "description": "Normalize skill metadata and resource paths / Нормализует метаданные навыков и пути к их ресурсам.",
+      "paths": [
+        "open_terminal/utils/skills.py"
+      ],
+      "sha256": "e0aa39a71281670d60cedb56a48f2c5acbab0d47861b5542e4205c52484d4665"
+    },
+    {
+      "patch": "06-service-api.patch",
+      "description": "Provide authenticated readiness, CLI CORS, MCP startup and bounded process log delivery / Добавляет проверку готовности с авторизацией, CORS для CLI, запуск MCP и ограниченную выдачу логов.",
+      "paths": [
+        ".avx1/test_cli_cors.py",
+        ".avx1/test_mcp_cli.py",
+        ".avx1/test_result_delivery.py",
+        ".avx1/test_terminal.py",
+        ".avx1/test_terminal_mainstream.py",
+        "docs/configuration.md",
+        "open_terminal/__init__.py",
+        "open_terminal/__main__.py",
+        "open_terminal/cli.py",
+        "open_terminal/main.py",
+        "open_terminal/mcp_server.py",
+        "open_terminal/utils/limits.py",
+        "open_terminal/utils/port.py",
+        "open_terminal/utils/runner.py"
+      ],
+      "sha256": "84f8158dab870b1351fb568d6583bea642dc4c9a37bd36f64e72bd9a5de9a768"
+    },
+    {
+      "patch": "07-localization-checks.patch",
+      "description": "Check localization coverage in the portable package / Проверяет полноту переводов в переносимом пакете.",
+      "paths": [
+        ".avx1/test_locales.py"
+      ],
+      "sha256": "f278c64394461714bfa19007835cbacbf07beaff1d30f5451f2b635aec51c921"
+    },
+    {
+      "patch": "08-package-runtime.patch",
+      "description": "Set Terminal package dependencies and container entry points / Настраивает зависимости Terminal и команды запуска контейнера.",
       "paths": [
         ".dockerignore",
         ".python-version",
         "dev.sh",
         "entrypoint-openshift.sh",
-        "open_terminal/__init__.py",
-        "open_terminal/__main__.py",
-        "open_terminal/agents/discovery.py",
-        "open_terminal/agents/sessions.py",
-        "open_terminal/browser/chrome.py",
-        "open_terminal/cli.py",
-        "open_terminal/env.py",
-        "open_terminal/main.py",
-        "open_terminal/mcp_server.py",
-        "open_terminal/utils/documents.py",
-        "open_terminal/utils/file_compare.py",
-        "open_terminal/utils/git.py",
-        "open_terminal/utils/git_line_stats.py",
-        "open_terminal/utils/limits.py",
-        "open_terminal/utils/port.py",
-        "open_terminal/utils/runner.py",
-        "open_terminal/utils/search.py",
-        "open_terminal/utils/search_preview.py",
-        "open_terminal/utils/skills.py",
         "pyproject.toml"
       ],
-      "sha256": "7121c5b6114078256e12c2cf7bf33bd7bd7d1555c48e76eefc278ef79ea85bb2"
+      "sha256": "3707e1cc0f367bc8b8c839f95a92e543d04e1215dba25816a5c4b4b925408178"
     },
     {
-      "patch": "02-build.patch",
-      "description": "Our reproducible build, toolchain and CI recipes / Наши сборочные рецепты, toolchain и CI.",
+      "patch": "09-portable-install.patch",
+      "description": "Provide portable build commands and the fork installer / Добавляет команды переносимой сборки и установщик.",
       "paths": [
         ".avx1/Install.cmd",
         ".avx1/Install.ps1",
-        ".avx1/PATCHES.json",
+        ".avx1/portable_build.py",
+        "Build.cmd"
+      ],
+      "sha256": "a5f4c34a7c7c47f8f56c4bebdee4b03422237c66a6b0445f57c1f5d3aceeb4c9"
+    },
+    {
+      "patch": "10-ci-build.patch",
+      "description": "Pin toolchains and package inputs, and run the fork build and publication checks / Закрепляет инструменты и входы сборки, запускает проверки пакетов и публикации.",
+      "paths": [
         ".avx1/android_sdk.py",
-        ".avx1/bench_search_cpu.py",
         ".avx1/build.py",
         ".avx1/common.py",
-        ".avx1/portable_build.py",
         ".avx1/project.json",
+        ".avx1/test_public_gate.py",
         ".avx1/toolchains.json",
         ".gitattributes",
         ".github/workflows/avx1-build.yml",
         ".github/workflows/pypi.yml",
         ".github/workflows/release.yml",
-        ".gitignore",
-        "Build.cmd"
+        ".gitignore"
       ],
-      "sha256": "51c1882ace96d12c409f59e7d77f428f0565d0c8e5f7f0de3e019a7104f8af45"
+      "sha256": "3e1e8a4154cc7e319eec33dfd69730be15d175a2b64a34b6a2f32405b7e2afeb"
     },
     {
-      "patch": "03-tests.patch",
-      "description": "Our regressions and adaptations of upstream fixtures / Наши регрессии и адаптации тестов.",
+      "patch": "11-project-docs.patch",
+      "description": "Document fork setup, support and license terms / Описывает установку, поддержку и условия лицензирования форка.",
       "paths": [
-        ".avx1/test_agent_discovery_policy.py",
-        ".avx1/test_browser_proxy_contracts.py",
-        ".avx1/test_cli_cors.py",
-        ".avx1/test_git_contracts.py",
-        ".avx1/test_locales.py",
-        ".avx1/test_mcp_cli.py",
-        ".avx1/test_public_gate.py",
-        ".avx1/test_result_delivery.py",
-        ".avx1/test_search_contract.py",
-        ".avx1/test_search_safety.py",
-        ".avx1/test_terminal.py",
-        ".avx1/test_terminal_mainstream.py"
-      ],
-      "sha256": "d538a7df4702059f937371686a9145a7dcfc3fdb3ec8ee9b1c71ee81ca504a22"
-    },
-    {
-      "patch": "04-documentation.patch",
-      "description": "Our fork documentation, notices and qualification evidence / Наши описания форка, уведомления и доказательства квалификации.",
-      "paths": [
-        ".avx1/measurements/latest.json",
         "LICENSE",
         "README.md",
         "README.ru.md",
-        "SECURITY.md",
-        "docs/configuration.md"
+        "SECURITY.md"
       ],
-      "sha256": "fdd4fb679a350078cc12a756f4f89fa610b27b0941e81555da767172bcd5f079"
+      "sha256": "7bb18646865d90d98d86b5a9281ed85f1193a372e7b3aadb0e48d82b2bc8efdb"
+    },
+    {
+      "patch": "12-fork-records.patch",
+      "description": "Record fork changes, upstream reviews and qualification measurements / Хранит журнал изменений, разбор upstream и результаты проверок.",
+      "paths": [
+        ".avx1/PATCHES.json",
+        ".avx1/measurements/latest.json"
+      ],
+      "sha256": "cead6825ce0e6a170d29a6980bcbb05c3d67ca34328b5d021feddf18e9ab58de"
     }
   ],
   "files": {
-    "01-runtime.patch": "7121c5b6114078256e12c2cf7bf33bd7bd7d1555c48e76eefc278ef79ea85bb2",
-    "02-build.patch": "51c1882ace96d12c409f59e7d77f428f0565d0c8e5f7f0de3e019a7104f8af45",
-    "03-tests.patch": "d538a7df4702059f937371686a9145a7dcfc3fdb3ec8ee9b1c71ee81ca504a22",
-    "04-documentation.patch": "fdd4fb679a350078cc12a756f4f89fa610b27b0941e81555da767172bcd5f079",
+    "01-credential-isolation.patch": "cb0b07d73a60399c2efd98d666f803cd4859331c8c64dd5c9100205ed742baaa",
+    "02-bounded-search.patch": "b15628743df07a83affda512ffcd51ca616b0cbb1b4dc7c9b20c514fa13d2dd8",
+    "03-document-comparison.patch": "54b95662b86b3e934c4f0d4ce4b07886b68de123e157f63ea583147c004e0cbd",
+    "04-chrome-proxy.patch": "7091d83abc0992c5e570b2cc22c3c54cec75f6d27ac471cb2160cdde40895306",
+    "05-skills-paths.patch": "e0aa39a71281670d60cedb56a48f2c5acbab0d47861b5542e4205c52484d4665",
+    "06-service-api.patch": "84f8158dab870b1351fb568d6583bea642dc4c9a37bd36f64e72bd9a5de9a768",
+    "07-localization-checks.patch": "f278c64394461714bfa19007835cbacbf07beaff1d30f5451f2b635aec51c921",
+    "08-package-runtime.patch": "3707e1cc0f367bc8b8c839f95a92e543d04e1215dba25816a5c4b4b925408178",
+    "09-portable-install.patch": "a5f4c34a7c7c47f8f56c4bebdee4b03422237c66a6b0445f57c1f5d3aceeb4c9",
+    "10-ci-build.patch": "3e1e8a4154cc7e319eec33dfd69730be15d175a2b64a34b6a2f32405b7e2afeb",
+    "11-project-docs.patch": "7bb18646865d90d98d86b5a9281ed85f1193a372e7b3aadb0e48d82b2bc8efdb",
+    "12-fork-records.patch": "cead6825ce0e6a170d29a6980bcbb05c3d67ca34328b5d021feddf18e9ab58de",
     ".gitattributes": "705fd4d6451a31d36b3df7de96f83f30ac976c9b4a6d1e51671d8e2f33e2d0da",
-    "series": "0de3cc8bf7284c341fd9a7217a5cc598d813b5a95bdebb6584f9a9c790128ada",
-    "README.md": "280841ad3cb2656fd12eed7f5c40c5ce7977c43fd13ca00a00aa4da4c15dbfe1"
+    "series": "94cec36ddda10ff816f5c448a4f40e3ea89dc28d2572ae3ec150b373a387ff94",
+    "README.md": "7f4f2d1b827e772fcc2f87eff3d8ce76f6703ecd692682c5c16215f12b5665de"
   }
 }

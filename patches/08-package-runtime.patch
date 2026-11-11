@@ -1,0 +1,207 @@
+diff --git a/.dockerignore b/.dockerignore
+index aee115961fb3c7536d4ed1a7c19cb5a9ffb9b47a..1c6dddb784789cd86bd8be43685bdd8321fc7b8b 100644
+--- a/.dockerignore
++++ b/.dockerignore
+@@ -1,11 +1,11 @@
+-__pycache__
+-*.egg-info
+-dist
+-build
+-.git
+-.gitignore
+-.github
+-*.pyc
+-.env
+-.venv
+-venv
++__pycache__
++*.egg-info
++dist
++build
++.git
++.gitignore
++.github
++*.pyc
++.env
++.venv
++venv
+diff --git a/.python-version b/.python-version
+index 2c0733315e415bfb5e5b353f9996ecd964d395b2..37504c53c604004f29d17be13adb2838b49c3bd3 100644
+--- a/.python-version
++++ b/.python-version
+@@ -1 +1 @@
+-3.11
++3.11
+diff --git a/dev.sh b/dev.sh
+index aec9132b5c81c5bc8d31f35975c0d5a3154b6b99..2e1f4b73ae065eb8a3b0822737a6ca820a4bdcf0 100755
+--- a/dev.sh
++++ b/dev.sh
+@@ -1,2 +1,2 @@
+-#!/usr/bin/env bash
+-uv run uvicorn open_terminal.main:app --reload
++#!/usr/bin/env bash
++uv run uvicorn open_terminal.main:app --reload
+diff --git a/entrypoint-openshift.sh b/entrypoint-openshift.sh
+index 5008b11834fb475eece51cf16d7e4071f15df96b..42f95788462619e7229d1a0fe19a6a8baa70a25a 100644
+--- a/entrypoint-openshift.sh
++++ b/entrypoint-openshift.sh
+@@ -1,61 +1,61 @@
+-#!/bin/sh
+-set -e
+-
+-file_env() {
+-    var="$1"
+-    file_var="${var}_FILE"
+-    default="${2:-}"
+-
+-    eval current_value="\${$var:-}"
+-    eval file_value="\${$file_var:-}"
+-    eval var_is_set="\${$var+set}"
+-    eval file_is_set="\${$file_var+set}"
+-
+-    if [ "$var_is_set" = "set" ] && [ "$file_is_set" = "set" ]; then
+-        printf >&2 'error: both %s and %s are set, but they are mutually exclusive\n' "$var" "$file_var"
+-        exit 1
+-    fi
+-
+-    value="$default"
+-    if [ -n "$current_value" ]; then
+-        value="$current_value"
+-    elif [ -n "$file_value" ]; then
+-        value="$(cat "$file_value")"
+-    fi
+-
+-    export "$var=$value"
+-    unset "$file_var"
+-}
+-
+-warn_unsupported() {
+-    var="$1"
+-    eval value="\${$var:-}"
+-    if [ -n "$value" ]; then
+-        printf >&2 'warning: %s is not supported by the OpenShift image and will be ignored\n' "$var"
+-        unset "$var"
+-    fi
+-}
+-
+-file_env OPEN_TERMINAL_API_KEY
+-
+-if [ "${OPEN_TERMINAL_MULTI_USER:-}" = "true" ] || [ "${OPEN_TERMINAL_MULTI_USER:-}" = "1" ]; then
+-    printf >&2 'error: OPEN_TERMINAL_MULTI_USER is not supported by the OpenShift image\n'
+-    exit 1
+-fi
+-
+-warn_unsupported OPEN_TERMINAL_ALLOWED_DOMAINS
+-warn_unsupported OPEN_TERMINAL_PACKAGES
+-warn_unsupported OPEN_TERMINAL_PIP_PACKAGES
+-warn_unsupported OPEN_TERMINAL_NPM_PACKAGES
+-
+-export HOME="${HOME:-/home/user}"
+-export SHELL="${SHELL:-/bin/bash}"
+-export USER="${USER:-user}"
+-export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+-export XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
+-export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
+-export PATH="$HOME/.local/bin:$PATH"
+-
+-mkdir -p "$HOME" "$HOME/.local/bin" "$XDG_CONFIG_HOME" "$XDG_STATE_HOME" "$XDG_CACHE_HOME" 2>/dev/null || true
+-
+-exec open-terminal "$@"
++#!/bin/sh
++set -e
++
++file_env() {
++    var="$1"
++    file_var="${var}_FILE"
++    default="${2:-}"
++
++    eval current_value="\${$var:-}"
++    eval file_value="\${$file_var:-}"
++    eval var_is_set="\${$var+set}"
++    eval file_is_set="\${$file_var+set}"
++
++    if [ "$var_is_set" = "set" ] && [ "$file_is_set" = "set" ]; then
++        printf >&2 'error: both %s and %s are set, but they are mutually exclusive\n' "$var" "$file_var"
++        exit 1
++    fi
++
++    value="$default"
++    if [ -n "$current_value" ]; then
++        value="$current_value"
++    elif [ -n "$file_value" ]; then
++        value="$(cat "$file_value")"
++    fi
++
++    export "$var=$value"
++    unset "$file_var"
++}
++
++warn_unsupported() {
++    var="$1"
++    eval value="\${$var:-}"
++    if [ -n "$value" ]; then
++        printf >&2 'warning: %s is not supported by the OpenShift image and will be ignored\n' "$var"
++        unset "$var"
++    fi
++}
++
++file_env OPEN_TERMINAL_API_KEY
++
++if [ "${OPEN_TERMINAL_MULTI_USER:-}" = "true" ] || [ "${OPEN_TERMINAL_MULTI_USER:-}" = "1" ]; then
++    printf >&2 'error: OPEN_TERMINAL_MULTI_USER is not supported by the OpenShift image\n'
++    exit 1
++fi
++
++warn_unsupported OPEN_TERMINAL_ALLOWED_DOMAINS
++warn_unsupported OPEN_TERMINAL_PACKAGES
++warn_unsupported OPEN_TERMINAL_PIP_PACKAGES
++warn_unsupported OPEN_TERMINAL_NPM_PACKAGES
++
++export HOME="${HOME:-/home/user}"
++export SHELL="${SHELL:-/bin/bash}"
++export USER="${USER:-user}"
++export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
++export XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
++export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
++export PATH="$HOME/.local/bin:$PATH"
++
++mkdir -p "$HOME" "$HOME/.local/bin" "$XDG_CONFIG_HOME" "$XDG_STATE_HOME" "$XDG_CACHE_HOME" 2>/dev/null || true
++
++exec open-terminal "$@"
+diff --git a/pyproject.toml b/pyproject.toml
+index 45e9f49bf9c77af55e3a152dae1ced56468b5690..d715f48c5b517ba901138652d98e8d9e05724c5c 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -9,22 +9,23 @@ authors = [
+ ]
+ requires-python = ">=3.11"
+ dependencies = [
+-    "fastapi>=0.115.0",
+-    "uvicorn[standard]>=0.34.0",
+-    "watchfiles>=1.1.1",
++    "fastapi==0.136.3",
++    "pydantic==2.13.4",
++    "uvicorn[standard]==0.54.0",
+     "click>=8.1.0",
+-    "httpx>=0.27.0",
+-    "websockets>=14.0",
+-    "python-multipart>=0.0.22",
+-    "aiofiles>=25.1.0",
+-    "pypdf>=5.0.0",
++    "httpx==0.28.1",
++    "python-multipart==0.0.32",
++    "aiofiles==25.1.0",
++    "pypdf==6.21.4",
++    "watchfiles==1.3.0",
++    "websockets==15.0.1",
+     "python-docx>=1.0.0",
+     "openpyxl>=3.1.0",
+     "python-pptx>=1.0.0",
+     "striprtf>=0.0.26",
+     "xlrd>=2.0.0",
+     "pywinpty>=2.0.0; sys_platform == 'win32'",
+-    "pillow>=10.0.0",
++    "pillow==13.0.0",
+     "mss>=10.0.0; sys_platform == 'darwin' or sys_platform == 'win32'",
+     "pyautogui>=0.9.54; sys_platform == 'darwin' or sys_platform == 'win32'",
+     "pyperclip>=1.9.0; sys_platform == 'darwin' or sys_platform == 'win32'",

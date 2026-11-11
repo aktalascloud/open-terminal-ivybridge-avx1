@@ -1,0 +1,341 @@
+diff --git a/.avx1/bench_search_cpu.py b/.avx1/bench_search_cpu.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..aa7d17ecc083381fddabc8985e7c0c9822dc132b
+--- /dev/null
++++ b/.avx1/bench_search_cpu.py
+@@ -0,0 +1,77 @@
++"""Measure preview construction and the real authenticated grep API on this CPU."""
++import argparse
++import hashlib
++import importlib.util
++import json
++import os
++from pathlib import Path
++import platform
++import random
++import statistics
++import tempfile
++import time
++from unittest.mock import patch
++
++OLD=r'''def old_preview(line, match_start):
++    content=line.rstrip("\r\n")
++    if len(content)<=300:return content
++    left=max(0,match_start-100);right=min(len(content),left+300);left=max(0,right-300)
++    return (("…" if left else "")+content[left:right]+("…" if right<len(content) else "")+f" [truncated; columns {left+1}-{right} of {len(content)}]")
++'''
++
++def main(output):
++    root=Path(__file__).resolve().parents[1]
++    Path(output).parent.mkdir(parents=True,exist_ok=True)
++    spec=importlib.util.spec_from_file_location('preview_candidate',root/'open_terminal/utils/search_preview.py')
++    mod=importlib.util.module_from_spec(spec);spec.loader.exec_module(mod);current=mod.bounded_match_content
++    namespace={};exec(OLD,namespace);old=namespace['old_preview']
++    r=random.Random(19)
++    for length in [0,1,298,299,300,301,302,1000,2000006]:
++        for ending in ('','\n','\r\n','\r\r\n'):
++            text=('жяx'*(length//3+1))[:length]+ending
++            for location in (0,length//2,max(0,length-1)):assert current(text,location)==old(text,location)
++    line='a'*1000000+'needle'+'b'*1000000+'\n';samples={'released_preview':[],'slice_only_preview':[]}
++    for turn in range(10):
++        for label,fn in ([('released_preview',old),('slice_only_preview',current)] if turn%2==0 else [('slice_only_preview',current),('released_preview',old)]):
++            for _ in range(10):fn(line,1000000)
++            count=1000
++            while True:
++                start=time.process_time_ns()
++                for _ in range(count):fn(line,1000000)
++                elapsed=time.process_time_ns()-start
++                if elapsed>=200000000:break
++                count*=2
++            samples[label].append(elapsed/count)
++    result={'cpu':platform.processor(),'scope':'Synthetic 2MB matching line: preview construction CPU time; no LLM inference. Old/released and optimized outputs are identical.',
++            'semantic_comparisons':108,'input_chars':len(line),'preview_samples_cpu_ns':samples,
++            'source_sha256':hashlib.sha256((root/'open_terminal/utils/search_preview.py').read_bytes()).hexdigest()}
++    med={k:statistics.median(v) for k,v in samples.items()};result['preview_cpu_median_ns']=med;result['preview_cpu_time_reduction_percent']=100*(1-med['slice_only_preview']/med['released_preview'])
++    with tempfile.TemporaryDirectory(prefix='owui-grep-cpu-',dir=Path(output).parent) as folder:
++        os.environ.update(OPEN_TERMINAL_API_KEY='synthetic-cpu-benchmark',OPEN_TERMINAL_MULTI_USER='false',OPEN_TERMINAL_ENABLE_TERMINAL='false',OPEN_TERMINAL_ENABLE_NOTEBOOKS='false',OPEN_TERMINAL_LOG_DIR=folder,XDG_STATE_HOME=folder,XDG_CONFIG_HOME=folder)
++        os.environ.pop('OPEN_TERMINAL_API_KEY_FILE',None)
++        import open_terminal.main as service
++        from fastapi.testclient import TestClient
++        path=Path(folder)/'data.json';path.write_text(line,encoding='utf-8')
++        headers={'Authorization':'Bearer synthetic-cpu-benchmark'};params={'query':'needle','path':str(path)}
++        timings={'upstream_full_line':[],'released_preview':[],'slice_only_preview':[]};sizes={}
++        with TestClient(service.app) as client:
++            assert client.get('/files/grep',params=params).status_code==401
++            cases=[('upstream_full_line',lambda text,pos:text.rstrip('\r\n')),('released_preview',old),('slice_only_preview',current)]
++            for turn in range(6):
++                order=cases if turn%2==0 else list(reversed(cases))
++                for label,fn in order:
++                    with patch.object(service,'bounded_match_content',fn):
++                        probe=client.get('/files/grep',params=params,headers=headers);assert probe.status_code==200
++                        data=probe.json();assert len(data['matches'])==1 and data['matches'][0]['line']==1 and 'needle' in data['matches'][0]['content'];sizes[label]=len(probe.content)
++                        start=time.process_time_ns()
++                        for _ in range(200):
++                            response=client.get('/files/grep',params=params,headers=headers);assert response.status_code==200
++                        timings[label].append((time.process_time_ns()-start)/200)
++        medians={k:statistics.median(v) for k,v in timings.items()};result.update(api_samples_cpu_ns=timings,api_cpu_median_ns=medians,response_bytes=sizes,
++            api_cpu_time_reduction_vs_upstream_percent=100*(1-medians['slice_only_preview']/medians['upstream_full_line']),
++            api_cpu_time_reduction_vs_released_percent=100*(1-medians['slice_only_preview']/medians['released_preview']))
++    Path(output).parent.mkdir(parents=True,exist_ok=True);Path(output).write_text(json.dumps(result,indent=2)+'\n',encoding='utf-8')
++    print(json.dumps({k:v for k,v in result.items() if 'samples' not in k}))
++
++if __name__=='__main__':
++    parser=argparse.ArgumentParser();parser.add_argument('--output',required=True);args=parser.parse_args();main(args.output)
+diff --git a/.avx1/test_search_contract.py b/.avx1/test_search_contract.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..790aba58edfee85893d9941de9e547c011d284c6
+--- /dev/null
++++ b/.avx1/test_search_contract.py
+@@ -0,0 +1,75 @@
++"""PR178 independent search fixes; synthetic files and fake RG, real HTTP route."""
++from contextlib import contextmanager
++from pathlib import Path
++import tempfile
++import unittest
++from unittest.mock import Mock, patch
++
++from test_terminal_mainstream import main, AUTH, FOLDER, TestClient, env_patch, fixture
++
++
++class SearchContract(unittest.TestCase):
++    def setUp(self):
++        self.directory = tempfile.TemporaryDirectory(dir=FOLDER)
++        self.root = Path(self.directory.name)
++        self.client = TestClient(main.app)
++
++    def tearDown(self):
++        self.client.close()
++        self.directory.cleanup()
++
++    def matches(self, path, text, query, rg):
++        path.write_text(text, encoding='utf-8', newline='')
++        @contextmanager
++        def matching(*args):
++            yield rg
++        with patch.object(main, 'search_entries', return_value=[(str(path), 'file')]), \
++             patch.object(main, 'matching_files', matching):
++            response = self.client.get('/files/matches', headers=AUTH,
++                params={'path': str(self.root), 'query': query})
++        self.assertEqual(response.status_code, 200, response.text)
++        return response.json()
++
++    def test_original_unicode_position_and_utf16_column_in_both_search_paths(self):
++        for text, expected in [('İx target', 4), ('😀İx target', 6), ('Before TARGET', 8)]:
++            for rg in [None, lambda path: True]:
++                with self.subTest(text=text, rg=rg is not None):
++                    data = self.matches(self.root / 'file.txt', text, 'target', rg)
++                    match = data['results'][0]['content_matches'][0]
++                    self.assertEqual(match, {'line': 1, 'column': expected, 'text': text})
++
++    def test_size_cap_applies_before_rg_predicate(self):
++        rg = Mock(return_value=True)
++        with patch.object(main, 'MAX_CONTENT_SEARCH_FILE_SIZE', 32):
++            data = self.matches(self.root / 'file.txt', 'target' * 100, 'target', rg)
++        self.assertEqual(data['results'], [])
++        rg.assert_not_called()
++
++    def test_long_matching_line_reuses_bounded_preview_without_losing_position(self):
++        text = '界' * 20000 + 'target' + 'suffix'
++        for rg in [None, lambda path: True]:
++            with self.subTest(rg=rg is not None):
++                data = self.matches(self.root / 'file.txt', text, 'target', rg)
++                match = data['results'][0]['content_matches'][0]
++                self.assertEqual(match['column'], 20001)
++                self.assertTrue(match['excerpt_truncated'])
++                self.assertIn('target', match['text'])
++                self.assertIn('truncated', match['text'])
++                self.assertLess(len(match['text'].encode('utf-8')), 1600)
++
++    def test_large_file_still_matches_filename_without_content_scan(self):
++        rg = Mock(return_value=True)
++        with patch.object(main, 'MAX_CONTENT_SEARCH_FILE_SIZE', 32):
++            data = self.matches(self.root / 'target.txt', 'target' * 100, 'target', rg)
++        self.assertEqual(len(data['results']), 1)
++        self.assertTrue(data['results'][0]['name_match'])
++        self.assertEqual(data['results'][0]['content_matches'], [])
++        rg.assert_not_called()
++
++
++if __name__ == '__main__':
++    try:
++        unittest.main()
++    finally:
++        env_patch.stop()
++        fixture.cleanup()
+diff --git a/.avx1/test_search_safety.py b/.avx1/test_search_safety.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..2850cf3df7a0cc83b82b0814a729d7a37b24a560
+--- /dev/null
++++ b/.avx1/test_search_safety.py
+@@ -0,0 +1,77 @@
++"""PR192 device/mount boundaries; synthetic stat data, no device is opened."""
++import os
++from pathlib import Path
++import stat
++import sys
++from types import SimpleNamespace as NS
++import unittest
++from unittest.mock import patch
++import tempfile
++
++sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
++from open_terminal.utils import search
++
++
++class SearchSafety(unittest.TestCase):
++    def test_only_regular_files_are_content_candidates(self):
++        for mode, expected in [(stat.S_IFREG, True), (stat.S_IFCHR, False), (stat.S_IFIFO, False), (stat.S_IFSOCK, False)]:
++            with self.subTest(mode=mode), patch.object(search.os, 'stat', return_value=NS(st_mode=mode)):
++                self.assertEqual(search.is_regular_file('synthetic-path'), expected)
++        with patch.object(search.os, 'stat', side_effect=PermissionError):
++            self.assertFalse(search.is_regular_file('unavailable'))
++
++    def test_walk_does_not_cross_mounts_or_allowed_path_boundary(self):
++        directories = ['same', 'mounted', 'forbidden']
++        fs = NS(is_path_allowed=lambda path: os.path.basename(path) != 'forbidden')
++        with patch.object(search.os, 'walk', return_value=[('root', directories, ['file.txt'])]), \
++             patch.object(search, '_device', side_effect=lambda path: 2 if os.path.basename(path) == 'mounted' else 1):
++            result = list(search.walk_entries(fs, 'root'))
++        self.assertEqual({os.path.basename(path) for path, _ in result}, {'same', 'file.txt'})
++
++    def test_explicit_mount_root_remains_searchable(self):
++        directories = ['child']
++        with patch.object(search.os, 'walk', return_value=[('mounted', directories, ['file.txt'])]), \
++             patch.object(search, '_device', return_value=2):
++            result = list(search.walk_entries(NS(is_path_allowed=lambda path: True), 'mounted'))
++        self.assertEqual({os.path.basename(path) for path, _ in result}, {'child', 'file.txt'})
++
++    def test_pseudo_filesystem_prefix_is_not_a_similar_directory_name(self):
++        with patch.object(search.os.path, 'realpath', side_effect=lambda path: path), patch.object(search.os, 'sep', '/'):
++            for root in ('/dev', '/dev/pts', '/proc/1', '/sys/kernel'):
++                self.assertTrue(search._is_pseudo_filesystem(root))
++            self.assertFalse(search._is_pseudo_filesystem('/devices'))
++
++    def test_pseudo_root_never_reaches_ripgrep(self):
++        with patch.object(search, '_is_pseudo_filesystem', return_value=True), patch.object(search.subprocess, 'run') as run:
++            with search.matching_files('needle', '/dev', True) as matcher:
++                self.assertIsNone(matcher)
++            run.assert_not_called()
++
++    def test_ripgrep_root_has_mount_and_pseudo_tree_guards(self):
++        calls = []
++        realpath = search.os.path.realpath
++        temporary_directory = tempfile.TemporaryDirectory
++        work = Path(__file__).resolve().parents[1] / '.avx1-work'
++        work.mkdir(exist_ok=True)
++        def owned_temporary(*args, **kwargs):
++            kwargs['dir'] = work
++            directory = temporary_directory(*args, **kwargs)
++            assert Path(directory.name).resolve().is_relative_to(work.resolve())
++            return directory
++        def run(command, **kwargs):
++            calls.append(command)
++            return NS(returncode=0)
++        with patch.object(search, '_is_pseudo_filesystem', return_value=False), \
++             patch.object(search.os.path, 'realpath', side_effect=lambda path, **kwargs: os.path.sep if path == 'root' else realpath(path, **kwargs)), \
++             patch.object(search.tempfile, 'TemporaryDirectory', side_effect=owned_temporary), \
++             patch.object(search.shutil, 'which', return_value='synthetic-rg'), \
++             patch.object(search.subprocess, 'run', side_effect=run):
++            with search.matching_files('needle', 'root', False) as matcher:
++                self.assertFalse(matcher('not-present'))
++        self.assertIn('--one-file-system', calls[0])
++        for glob in ('!dev/**', '!proc/**', '!sys/**'):
++            self.assertIn(glob, calls[0])
++
++
++if __name__ == '__main__':
++    unittest.main()
+diff --git a/open_terminal/utils/search.py b/open_terminal/utils/search.py
+index c2f039be155d39a3fe8e86bcf758457e14d99930..dee1d3737a4cef000a4ab68390b69f78558a5aea 100644
+--- a/open_terminal/utils/search.py
++++ b/open_terminal/utils/search.py
+@@ -4,17 +4,43 @@ import json
+ import os
+ import shutil
+ import sqlite3
++import stat
+ import subprocess
+ import tempfile
+ 
+ from open_terminal.utils.limits import CHUNK_SIZE
+ 
+ 
++_PSEUDO_FILESYSTEMS = ("/dev", "/proc", "/sys")
++
++
++def is_regular_file(path):
++    """Do not open devices, FIFOs or sockets while scanning file contents."""
++    try:
++        return stat.S_ISREG(os.stat(path).st_mode)
++    except OSError:
++        return False
++
++
++def _device(path):
++    try:
++        return os.lstat(path).st_dev
++    except OSError:
++        return None
++
++
++def _is_pseudo_filesystem(path):
++    path = os.path.realpath(path)
++    return any(path == mount or path.startswith(mount + os.sep) for mount in _PSEUDO_FILESYSTEMS)
++
++
+ def walk_entries(fs, root, show_hidden=True):
++    root_device = _device(root)
+     for directory, dirs, files in os.walk(root):
+         dirs[:] = [name for name in sorted(dirs)
+                    if (show_hidden or not name.startswith("."))
+-                   and fs.is_path_allowed(os.path.join(directory, name))]
++                   and fs.is_path_allowed(os.path.join(directory, name))
++                   and _device(os.path.join(directory, name)) in (root_device, None)]
+         for name, kind in sorted([(name, "directory") for name in dirs] + [(name, "file") for name in files]):
+             path = os.path.join(directory, name)
+             if (show_hidden or not name.startswith(".")) and fs.is_path_allowed(path):
+@@ -78,12 +104,18 @@ def search_entries(fs, root, show_hidden=False, *, git_files_as_files=False):
+ @contextmanager
+ def matching_files(query, root, show_hidden):
+     """Use rg's ignore rules without its potentially enormous JSON submatch arrays."""
++    if _is_pseudo_filesystem(root):
++        yield None
++        return
+     rg = shutil.which("rg")
+     if not rg:
+         yield None
+         return
+     with tempfile.TemporaryFile() as output:
+-        args = [rg, "--files-with-matches", "--null", "--no-messages", "--fixed-strings", "--ignore-case"]
++        args = [rg, "--files-with-matches", "--null", "--no-messages", "--fixed-strings", "--ignore-case", "--one-file-system"]
++        if os.path.realpath(root) == os.path.sep:
++            for name in ("dev", "proc", "sys"):
++                args.extend(["--glob", f"!{name}/**"])
+         if show_hidden:
+             args.append("--hidden")
+         try:
+diff --git a/open_terminal/utils/search_preview.py b/open_terminal/utils/search_preview.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..961ca5c6f3783616d1d473db01c11df2035a9448
+--- /dev/null
++++ b/open_terminal/utils/search_preview.py
+@@ -0,0 +1,19 @@
++"""Bound grep tool output without hiding matches in long legitimate text lines."""
++MAX_MATCH_CONTENT = 300
++
++def bounded_match_content(line: str, match_start: int) -> str:
++    if len(line) <= MAX_MATCH_CONTENT:
++        return line.rstrip("\r\n")
++    # Avoid copying an entire multi-megabyte matching line just to trim its EOL.
++    length = len(line)
++    while length and line[length - 1] in "\r\n":
++        length -= 1
++    if length <= MAX_MATCH_CONTENT:
++        return line[:length]
++    # Adapted from the context-overflow problem in upstream PR #144. Preserve
++    # long JSON/minified-code matches and show the actual matching region.
++    left = max(0, match_start - MAX_MATCH_CONTENT // 3)
++    right = min(length, left + MAX_MATCH_CONTENT)
++    left = max(0, right - MAX_MATCH_CONTENT)
++    return (("…" if left else "") + line[left:right] + ("…" if right < length else "")
++            + f" [truncated; columns {left + 1}-{right} of {length}]")

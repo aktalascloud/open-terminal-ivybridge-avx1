@@ -1,4 +1,12 @@
-01-runtime.patch
-02-build.patch
-03-tests.patch
-04-documentation.patch
+01-credential-isolation.patch
+02-bounded-search.patch
+03-document-comparison.patch
+04-chrome-proxy.patch
+05-skills-paths.patch
+06-service-api.patch
+07-localization-checks.patch
+08-package-runtime.patch
+09-portable-install.patch
+10-ci-build.patch
+11-project-docs.patch
+12-fork-records.patch
