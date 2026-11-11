@@ -25,6 +25,9 @@ class CorsPrecedence(unittest.TestCase):
             values = {key: value for key, value in os.environ.items() if not key.upper().startswith('OPEN_TERMINAL_')}
             values.update(OPEN_TERMINAL_API_KEY_FILE=str(secret), XDG_CONFIG_HOME=str(root / 'xdg'))
             fake_env = types.ModuleType('open_terminal.env')
+            fake_env.MULTI_USER = False
+            fake_env.SETUP_SCRIPT = ""
+            fake_env.START_DIR = ""
             fake_env.UVICORN_LOOP = 'auto'
             fake_env.UVICORN_TIMEOUT_KEEP_ALIVE = None
             received = []
@@ -55,6 +58,9 @@ class CorsPrecedence(unittest.TestCase):
             environment_values.update(environment or {})
             received = []
             fake_env = types.ModuleType('open_terminal.env')
+            fake_env.MULTI_USER = False
+            fake_env.SETUP_SCRIPT = ""
+            fake_env.START_DIR = ""
             fake_env.UVICORN_LOOP = 'auto'
             fake_env.UVICORN_TIMEOUT_KEEP_ALIVE = None
             with patch.dict(os.environ, environment_values, clear=True), \
