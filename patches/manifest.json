@@ -3,9 +3,9 @@
   "grouping_version": 3,
   "ownership": "applied-downstream-only",
   "project": "terminal",
-  "upstream": "47fbd8f0f6ee632dc91500ece877a40b64014941",
-  "snapshot_source": "b7adc1fcc0939c54fcb236f1b1d81e9604f49bb8",
-  "downstream_tree_without_patches": "d9533005631b1203a8abef55da3a1149832370a6",
+  "upstream": "27dbfff3b9eed94798dddeb20db33771da67cb52",
+  "snapshot_source": "95830bba4ac243a4e0e3a6c097aa65cd8986d787",
+  "downstream_tree_without_patches": "47a6ed51623667451d199bc50ab2a0ba721160b6",
   "groups": [
     {
       "patch": "01-credential-isolation.patch",
@@ -19,7 +19,7 @@
         "open_terminal/utils/git.py",
         "open_terminal/utils/git_line_stats.py"
       ],
-      "sha256": "fe318f6bc4f21df6a6c0888e37154df440661eced518e92b70ce270da5e4ce04"
+      "sha256": "668a554bb71f24072da77f3e1804e1d70d5f783119b4a9b23662bda9b9dece9e"
     },
     {
       "patch": "02-bounded-search.patch",
@@ -78,7 +78,7 @@
         "open_terminal/utils/port.py",
         "open_terminal/utils/runner.py"
       ],
-      "sha256": "7da8a1e08e6d43536c1d61f23f5e203d47b73120927393464832ce2d7fd3b683"
+      "sha256": "b84015a2a607a46789ee70010e717027c90b15ff09c3f750def83f9ee2e544dd"
     },
     {
       "patch": "07-localization-checks.patch",
@@ -127,7 +127,7 @@
         ".github/workflows/release.yml",
         ".gitignore"
       ],
-      "sha256": "cfa3f9e8e9bccfc09bbfad9e96e227cca4983bb04efe49a6a3571a311932d341"
+      "sha256": "3cd8a7470bdbf77da62a3d59bb3b02932e7052706fd81dfd5fccfb37984cb3d0"
     },
     {
       "patch": "11-project-docs.patch",
@@ -151,20 +151,20 @@
     }
   ],
   "files": {
-    "01-credential-isolation.patch": "fe318f6bc4f21df6a6c0888e37154df440661eced518e92b70ce270da5e4ce04",
+    "01-credential-isolation.patch": "668a554bb71f24072da77f3e1804e1d70d5f783119b4a9b23662bda9b9dece9e",
     "02-bounded-search.patch": "b15628743df07a83affda512ffcd51ca616b0cbb1b4dc7c9b20c514fa13d2dd8",
     "03-document-comparison.patch": "54b95662b86b3e934c4f0d4ce4b07886b68de123e157f63ea583147c004e0cbd",
     "04-chrome-proxy.patch": "7091d83abc0992c5e570b2cc22c3c54cec75f6d27ac471cb2160cdde40895306",
     "05-skills-paths.patch": "e0aa39a71281670d60cedb56a48f2c5acbab0d47861b5542e4205c52484d4665",
-    "06-service-api.patch": "7da8a1e08e6d43536c1d61f23f5e203d47b73120927393464832ce2d7fd3b683",
+    "06-service-api.patch": "b84015a2a607a46789ee70010e717027c90b15ff09c3f750def83f9ee2e544dd",
     "07-localization-checks.patch": "f278c64394461714bfa19007835cbacbf07beaff1d30f5451f2b635aec51c921",
     "08-package-runtime.patch": "79e5d7409800253bf04ee18548d3c92dcfd68751b4b8a920f94f6cb29e7d7eb6",
     "09-portable-install.patch": "a5f4c34a7c7c47f8f56c4bebdee4b03422237c66a6b0445f57c1f5d3aceeb4c9",
-    "10-ci-build.patch": "cfa3f9e8e9bccfc09bbfad9e96e227cca4983bb04efe49a6a3571a311932d341",
+    "10-ci-build.patch": "3cd8a7470bdbf77da62a3d59bb3b02932e7052706fd81dfd5fccfb37984cb3d0",
     "11-project-docs.patch": "24a73296937ca56eee176942076e2ab2be3cd001760e2e62d17e1d32089b66fd",
     "12-fork-records.patch": "cead6825ce0e6a170d29a6980bcbb05c3d67ca34328b5d021feddf18e9ab58de",
     ".gitattributes": "705fd4d6451a31d36b3df7de96f83f30ac976c9b4a6d1e51671d8e2f33e2d0da",
     "series": "94cec36ddda10ff816f5c448a4f40e3ea89dc28d2572ae3ec150b373a387ff94",
-    "README.md": "ff5843798d5ce2263313313a8c4a1a4b5b1aea2de7933dfc74fe58bc91cc8804"
+    "README.md": "4fd908b2b61939f05eefaeffde6f92c3b1fe6af161f110dd4eaf71e7724617a9"
   }
 }

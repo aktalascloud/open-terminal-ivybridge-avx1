@@ -774,7 +774,7 @@ index 45f28366d359324a40d1857e68a2bef647eac225..85fef96abe3632b703567466e701482a
  
  if __name__ == "__main__":
 diff --git a/open_terminal/main.py b/open_terminal/main.py
-index 527a008a45465129764a0157631ee1e4f81bbc6a..5d927da9ec1e3be7a3e09ba43f1c66e2e38b01ab 100644
+index 4c19e75cbcab6b440c3b7d04d359841b8ef7a667..b1add39ef2bb0efd8d0e76767de22180e1bda19d 100644
 --- a/open_terminal/main.py
 +++ b/open_terminal/main.py
 @@ -28,13 +28,15 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request, UploadFile,
@@ -869,7 +869,7 @@ index 527a008a45465129764a0157631ee1e4f81bbc6a..5d927da9ec1e3be7a3e09ba43f1c66e2
  # ---------------------------------------------------------------------------
  # Config (capability discovery)
  # ---------------------------------------------------------------------------
-@@ -1210,13 +1233,13 @@ async def grep_search(
+@@ -1231,13 +1254,13 @@ async def grep_search(
              try:
                  with open(file_path, "r", encoding="utf-8", errors="strict") as f:
                      for line_number, line in enumerate(f, 1):
@@ -885,7 +885,7 @@ index 527a008a45465129764a0157631ee1e4f81bbc6a..5d927da9ec1e3be7a3e09ba43f1c66e2
                                      }
                                  )
                                  if len(matches) >= max_results:
-@@ -1264,7 +1287,7 @@ async def grep_search(
+@@ -1285,7 +1308,7 @@ async def grep_search(
      "/files/matches",
      operation_id="match_files",
      summary="Search files by name and contents",
@@ -894,7 +894,7 @@ index 527a008a45465129764a0157631ee1e4f81bbc6a..5d927da9ec1e3be7a3e09ba43f1c66e2
      dependencies=[Depends(verify_api_key)],
      responses={
          400: {"description": "Blank query."},
-@@ -1298,6 +1321,8 @@ async def match_files(
+@@ -1319,6 +1342,8 @@ async def match_files(
  
      def _matches_sync():
          query_lower = query.lower()
@@ -903,7 +903,7 @@ index 527a008a45465129764a0157631ee1e4f81bbc6a..5d927da9ec1e3be7a3e09ba43f1c66e2
  
          def content_lines(path):
              with open(path, encoding="utf-8", errors="replace", newline="\n" if rg_matches is not None else None) as source:
-@@ -1318,17 +1343,22 @@ async def match_files(
+@@ -1339,17 +1364,22 @@ async def match_files(
                  score = (0 if name_lower == query_lower else 1 if name_lower.startswith(query_lower)
                      else 2 if query_lower in name_lower else 3 if query_lower in rel_lower else 4)
                  content_matches = []
@@ -931,7 +931,7 @@ index 527a008a45465129764a0157631ee1e4f81bbc6a..5d927da9ec1e3be7a3e09ba43f1c66e2
                                      if len(content_matches) >= MAX_CONTENT_MATCHES_PER_FILE:
                                          break
                      except (OSError, UnicodeError):
-@@ -1844,7 +1874,7 @@ async def execute(
+@@ -1865,7 +1895,7 @@ async def execute(
          except asyncio.TimeoutError:
              pass
  
@@ -940,7 +940,7 @@ index 527a008a45465129764a0157631ee1e4f81bbc6a..5d927da9ec1e3be7a3e09ba43f1c66e2
          "id": process_id,
          "command": request.command,
          "cwd": cwd,
-@@ -1897,7 +1927,7 @@ async def get_status(
+@@ -1918,7 +1948,7 @@ async def get_status(
          except asyncio.TimeoutError:
              pass
  
