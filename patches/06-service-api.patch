@@ -1183,14 +1183,14 @@ index 8dfd85a4087fd349ad651d12f049553c0a4f1160..6a6a1e3a1fe17e10c88244a35f43e041
      try:
          while True:
 diff --git a/open_terminal/utils/runner.py b/open_terminal/utils/runner.py
-index c4d571d19e2d810cef6d1c19512cb58759465ac1..93218a814a18eabeb6846d51addc1a5086f20511 100644
+index c4d571d19e2d810cef6d1c19512cb58759465ac1..b81594067983f886fb65aa647c084c46e4290f25 100644
 --- a/open_terminal/utils/runner.py
 +++ b/open_terminal/utils/runner.py
-@@ -6,6 +6,7 @@ import signal
+@@ -6,7 +6,6 @@ import signal
  import subprocess
  import time
  from abc import ABC, abstractmethod
-+from open_terminal.env import sanitized_environ
- 
+-
  from open_terminal.env import sanitized_environ
  
+ try:
