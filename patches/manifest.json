@@ -4,8 +4,8 @@
   "ownership": "applied-downstream-only",
   "project": "terminal",
   "upstream": "70504212349d956cf21fbaef66bacd5e285df451",
-  "snapshot_source": "e6f19db10f2c0570ca2ac2092ebf08a53825589a",
-  "downstream_tree_without_patches": "24e3f6f1842b88b774424bdbfb0db4fa752d51e2",
+  "snapshot_source": "f1fb4580709901b3dc3c3b73c67e3f74bbc0601e",
+  "downstream_tree_without_patches": "7d5c55862dd95f3d2fab16e2cd8fd762c8d72262",
   "groups": [
     {
       "patch": "01-credential-isolation.patch",
@@ -78,7 +78,7 @@
         "open_terminal/utils/port.py",
         "open_terminal/utils/runner.py"
       ],
-      "sha256": "1ea6cda0781a3b005e14a77a6f0d1fcf68cccdc4c7a5deeba7f6a89a5c2d4ddf"
+      "sha256": "f647b04a82d01317260b44dbffca4da8ed2cebf1688192048f104e538d712bfb"
     },
     {
       "patch": "07-localization-checks.patch",
@@ -156,7 +156,7 @@
     "03-document-comparison.patch": "54b95662b86b3e934c4f0d4ce4b07886b68de123e157f63ea583147c004e0cbd",
     "04-chrome-proxy.patch": "885d3d35806e002455a50ec83520ad74d1728280ae5d8d4fa5313e51e521b060",
     "05-skills-paths.patch": "e0aa39a71281670d60cedb56a48f2c5acbab0d47861b5542e4205c52484d4665",
-    "06-service-api.patch": "1ea6cda0781a3b005e14a77a6f0d1fcf68cccdc4c7a5deeba7f6a89a5c2d4ddf",
+    "06-service-api.patch": "f647b04a82d01317260b44dbffca4da8ed2cebf1688192048f104e538d712bfb",
     "07-localization-checks.patch": "f278c64394461714bfa19007835cbacbf07beaff1d30f5451f2b635aec51c921",
     "08-package-runtime.patch": "4d61d7b61b94b5be94484cb42f4cdf46ec10ac843cb2b42ae84dae91e3da28c5",
     "09-portable-install.patch": "a5f4c34a7c7c47f8f56c4bebdee4b03422237c66a6b0445f57c1f5d3aceeb4c9",
@@ -165,6 +165,6 @@
     "12-fork-records.patch": "cead6825ce0e6a170d29a6980bcbb05c3d67ca34328b5d021feddf18e9ab58de",
     ".gitattributes": "705fd4d6451a31d36b3df7de96f83f30ac976c9b4a6d1e51671d8e2f33e2d0da",
     "series": "94cec36ddda10ff816f5c448a4f40e3ea89dc28d2572ae3ec150b373a387ff94",
-    "README.md": "6bd1f8c34f87003f82549a3895163fe4e6dbef80d4230eb6896a09e3a118c0af"
+    "README.md": "15eb85219472585d79b865d9cd958a82cf00c5f9604579c42895adc0da05a8b1"
   }
 }

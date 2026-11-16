@@ -345,10 +345,10 @@ index 0000000000000000000000000000000000000000..278e3e2543040ea4b2642cd782135539
 +    unittest.main()
 diff --git a/.avx1/test_terminal_mainstream.py b/.avx1/test_terminal_mainstream.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..3321182100513234e096eb9c9d2e8dc9a9a318ac
+index 0000000000000000000000000000000000000000..6c341e4596cec84a368a9c81c3b34508ffd89e52
 --- /dev/null
 +++ b/.avx1/test_terminal_mainstream.py
-@@ -0,0 +1,272 @@
+@@ -0,0 +1,275 @@
 +"""Isolated Terminal0.16 contracts; no browser, screen, audio or input is opened."""
 +import ast
 +import asyncio
@@ -380,7 +380,8 @@ index 0000000000000000000000000000000000000000..3321182100513234e096eb9c9d2e8dc9
 +from open_terminal import config
 +config._SYSTEM_CONFIG_PATH = FOLDER / 'no-system-config.toml'
 +config.init()
-+from open_terminal import main, desktop
++from open_terminal import main
++import open_terminal.desktop.router as desktop
 +from open_terminal.browser import router as browser
 +from open_terminal.browser import chrome
 +from open_terminal.frames import Frames
@@ -479,8 +480,10 @@ index 0000000000000000000000000000000000000000..3321182100513234e096eb9c9d2e8dc9
 +            calls.append(body.text)
 +            if len(calls) == 2:
 +                raise OSError('synthetic uncertain operation')
++        async def work(method, *args):
++            return method(*args)
 +        fake = NS(actions=asyncio.Lock(), transport='frames', width=10, height=10,
-+                  perform=perform, screenshot=AsyncMock())
++                  work=work, perform=perform, screenshot=AsyncMock())
 +        with patch.object(desktop, 'get_desktop', AsyncMock(return_value=fake)):
 +            response = self.client.post('/desktop/action', headers=AUTH,
 +                json={'actions': [{'action': 'type', 'text': text} for text in ('one', 'two', 'three')]})
