@@ -1,12 +1,14 @@
 import os
+from importlib.metadata import version
 
 import click
 import uvicorn
 
 
 @click.group()
+@click.version_option(package_name="open-terminal")
 def main():
-    """open-terminal — terminal interaction API"""
+    """Open Terminal provides a remote computer API."""
     pass
 
 
@@ -93,6 +95,14 @@ def resolve_cors_allowed_origins(cli_value: str | None, cfg: dict) -> str:
 )
 @click.option("--isolated", is_flag=True, help="Ignore system and user configuration files.")
 @click.option("--yes", is_flag=True, help="Approve the pinned cloudflared download (requires --cftunnel).")
+@click.option(
+    "--desktop-mode", type=click.Choice(["virtual", "host"]), default=None,
+    help="Linux desktop: separate session (default) or share the logged-in desktop.",
+)
+@click.option(
+    "--desktop-environment", type=click.Choice(["auto", "gnome", "xfce"]), default=None,
+    help="Virtual desktop environment (default: XFCE; auto also selects XFCE). Choose gnome explicitly to use GNOME.",
+)
 def run(
     host: str | None,
     port: int | None,
@@ -104,6 +114,8 @@ def run(
     yes: bool,
     isolated: bool,
     ipc: str | None,
+    desktop_mode: str | None,
+    desktop_environment: str | None,
 ):
     """Start the sandbox API server."""
     import secrets
@@ -124,6 +136,10 @@ def run(
 
     # Load config files before resolving other settings.
     cfg = config.init(config_path, isolated=isolated)
+    if desktop_mode is not None:
+        os.environ["OPEN_TERMINAL_DESKTOP_MODE"] = desktop_mode
+    if desktop_environment is not None:
+        os.environ["OPEN_TERMINAL_DESKTOP_ENVIRONMENT"] = desktop_environment
 
     # Resolve host/port: CLI flag > config file > built-in default
     ipc_port = port  # Only an explicit --port opts IPC mode into TCP listening.
@@ -173,6 +189,8 @@ def run(
         binary = resolve_binary(yes=yes)
 
     click.echo(BANNER)
+    click.echo(f"  Open Terminal v{version('open-terminal')}")
+    click.echo()
 
     # -- Startup info block --
     local_url = f"http://{'localhost' if host in ('0.0.0.0', '127.0.0.1') else host}:{port}"

@@ -24,8 +24,12 @@ from fastapi import (
 from fastapi.responses import Response
 from pydantic import BaseModel, Field, model_validator
 
+from open_terminal.desktop.audio import DesktopAudio
 from open_terminal.dependencies import get_filesystem, matches_api_key, verify_api_key
-from open_terminal.env import BROWSER_NO_SANDBOX, sanitized_environ
+from open_terminal.env import (
+    BROWSER_NO_SANDBOX, DESKTOP_ENVIRONMENT, DESKTOP_MODE, MULTI_USER,
+    sanitized_environ,
+)
 from open_terminal.utils.fs import UserFS
 
 router = APIRouter(prefix="/desktop", tags=["desktop"])
@@ -35,16 +39,63 @@ startup_lock = asyncio.Lock()
 log = logging.getLogger(__name__)
 
 
+def gnome_session():
+    # A Wayland-only GNOME installation cannot run inside TigerVNC's X server.
+    if not all(shutil.which(name) for name in ("gnome-session", "gnome-shell", "xprop")):
+        return None
+    for name in ("ubuntu", "gnome"):
+        if (
+            any(Path(f"/usr/share/xsessions/{name}{suffix}.desktop").is_file()
+                for suffix in ("", "-xorg"))
+            and Path(f"/usr/share/gnome-session/sessions/{name}.session").is_file()
+        ):
+            return name
+    return None
+
+
+def virtual_environment():
+    return "gnome" if DESKTOP_ENVIRONMENT == "gnome" else "xfce"
+
+
+def virtual_backend():
+    return "wayland" if virtual_environment() == "gnome" and not gnome_session() else "vnc"
+
+
+def host_backend():
+    if sys.platform != "linux":
+        return "native"
+    # Xwayland's DISPLAY cannot capture/control a Wayland desktop. SSH without
+    # the graphical session's environment can still use its user-bus portal.
+    if (
+        os.environ.get("DISPLAY", "").startswith(":")
+        and not os.environ.get("WAYLAND_DISPLAY")
+        and os.environ.get("XDG_SESSION_TYPE", "").lower() in ("", "x11")
+    ):
+        return "native"
+    return "portal"
+
+
 def available():
-    if sys.platform in ("darwin", "win32"):
+    if DESKTOP_MODE == "host":
+        if MULTI_USER:
+            return False
+        if host_backend() == "portal":
+            return bool(importlib.util.find_spec("dbus_next") and shutil.which("gst-launch-1.0"))
         return all(
             importlib.util.find_spec(name) for name in ("mss", "pyautogui", "pyperclip")
         )
-    return all(
+    if sys.platform == "linux" and virtual_backend() == "wayland":
+        return not MULTI_USER and bool(importlib.util.find_spec("dbus_next")) and all(
+            shutil.which(name) for name in (
+                "gnome-shell", "dbus-daemon", "pipewire", "wireplumber", "gst-launch-1.0",
+            )
+        )
+    return sys.platform == "linux" and bool(
+        gnome_session() if virtual_environment() == "gnome" else shutil.which("startxfce4")
+    ) and all(
         shutil.which(name)
         for name in (
             "Xtigervnc",
-            "startxfce4",
             "dbus-run-session",
             "xauth",
             "xdotool",
@@ -62,7 +113,7 @@ class Desktop:
         self.fs = fs
         self.runtime = Path(tempfile.mkdtemp(prefix="open-terminal-desktop-"))
         self.processes = []
-        self.audio_process = None
+        self.audio = DesktopAudio(self)
         self.actions = asyncio.Lock()
         self.peers = set()
         self.env = {
@@ -72,6 +123,15 @@ class Desktop:
         }
         if BROWSER_NO_SANDBOX:
             self.env["OPEN_TERMINAL_BROWSER_NO_SANDBOX"] = "true"
+
+    @property
+    def command_env(self):
+        return {key: self.env[key] for key in (
+            "DISPLAY", "XAUTHORITY", "PULSE_SERVER", "PULSE_SINK", "PULSE_SOURCE",
+            "XDG_CURRENT_DESKTOP", "XDG_SESSION_DESKTOP", "DESKTOP_SESSION",
+            "XDG_SESSION_TYPE", "XDG_MENU_PREFIX", "GDK_BACKEND", "QT_QPA_PLATFORM",
+            "TERMINAL", "XDG_CONFIG_DIRS",
+        ) if key in self.env}
 
     async def spawn(self, *command, **kwargs):
         if self.fs.username:
@@ -118,7 +178,7 @@ class Desktop:
             except TimeoutError:
                 pass
 
-    async def run(self, *command, input=None):
+    async def run(self, *command, input=None, timeout=10):
         # xclip forks a clipboard owner; inherited pipes would never reach EOF.
         output = (
             asyncio.subprocess.DEVNULL
@@ -134,7 +194,7 @@ class Desktop:
             stderr=output,
         )
         try:
-            stdout, stderr = await asyncio.wait_for(process.communicate(input), 10)
+            stdout, stderr = await asyncio.wait_for(process.communicate(input), timeout)
             if process.returncode:
                 raise RuntimeError(
                     (stderr or b"").decode(errors="replace")[-1000:]
@@ -145,6 +205,8 @@ class Desktop:
             await self.stop_process(process)
 
     async def start(self, *, shell=True):
+        if shell and virtual_environment() == "xfce":
+            self.configure_xfce()
         if self.fs.username:
             import pwd
 
@@ -154,6 +216,7 @@ class Desktop:
                 "sudo",
                 "-n",
                 "chown",
+                "-R",
                 f"{account.pw_uid}:{os.getegid()}",
                 str(self.runtime),
             )
@@ -214,96 +277,85 @@ class Desktop:
             raise RuntimeError("Desktop display did not start")
         if not shell:
             return
-        await self.start_audio()
+        await self.audio.start()
+        environment = virtual_environment()
+        if environment == "gnome":
+            session = gnome_session()
+            if not session:
+                raise RuntimeError("GNOME needs an installed X11 session for VNC; use --desktop-environment xfce or --desktop-mode host.")
+            self.env.update(
+                XDG_SESSION_TYPE="x11", GDK_BACKEND="x11",
+                XDG_CURRENT_DESKTOP="ubuntu:GNOME" if session == "ubuntu" else "GNOME",
+                GNOME_SHELL_SESSION_MODE="ubuntu" if session == "ubuntu" else "user",
+                LIBGL_ALWAYS_SOFTWARE="1",
+            )
+            # Older releases expose --builtin; newer non-systemd builds omit it.
+            help_text = await self.run("dbus-run-session", "--", "gnome-session", "--help")
+            command = ("gnome-session", *(('--builtin',) if b"--builtin" in help_text else ()), f"--session={session}")
+        else:
+            command = ("startxfce4",)
         with (self.runtime / "session.log").open("wb") as log:
             self.processes.append(
                 await self.spawn(
-                    "dbus-run-session", "--", "startxfce4", stdout=log, stderr=log
+                    "env", "-u", "SESSION_MANAGER", "-u", "WAYLAND_DISPLAY",
+                    "dbus-run-session", "--", *command, stdout=log, stderr=log
                 )
             )
-        await self.run(
-            "xdotool", "search", "--sync", "--onlyvisible", "--class", "xfdesktop"
+        try:
+            if environment == "gnome":
+                # GNOME's supporting WM window is hidden and has no WM_CLASS.
+                for _ in range(150):
+                    if self.processes[-1].returncode is not None:
+                        raise RuntimeError("GNOME session exited")
+                    check = await self.run("xprop", "-root", "_NET_SUPPORTING_WM_CHECK")
+                    if b"window id # 0x" in check and not check.rstrip().endswith(b"0x0"):
+                        break
+                    await asyncio.sleep(0.2)
+                else:
+                    raise TimeoutError()
+            else:
+                await self.run("xdotool", "search", "--sync", "--onlyvisible", "--class", "xfdesktop", timeout=30)
+        except (TimeoutError, RuntimeError) as exc:
+            raise RuntimeError(f"{environment} desktop did not start: " + (self.runtime / "session.log").read_text(errors="replace")[-2000:]) from exc
+
+    def configure_xfce(self):
+        # startxfce4 preserves inherited GNOME values unless we replace them.
+        self.env.update(
+            XDG_CURRENT_DESKTOP="XFCE", XDG_SESSION_DESKTOP="xfce",
+            DESKTOP_SESSION="xfce", XDG_SESSION_TYPE="x11", XDG_MENU_PREFIX="xfce-",
+            GDK_BACKEND="x11", QT_QPA_PLATFORM="xcb",
         )
+        config = self.runtime / "config"
+        (config / "xfce4").mkdir(parents=True, exist_ok=True)
+        directories = os.environ.get("XDG_CONFIG_DIRS") or "/etc/xdg"
+        helpers = ""
+        for directory in directories.split(":"):
+            path = Path(directory) / "xfce4/helpers.rc"
+            if path.is_file():
+                helpers = path.read_text()
+                break
+        # Ubuntu's x-terminal-emulator alternative can select systemd-only Ptyxis.
+        helpers = "\n".join(line for line in helpers.splitlines() if line.partition("=")[0].strip() != "TerminalEmulator")
+        if shutil.which("xfce4-terminal"):
+            self.env["TERMINAL"] = "xfce4-terminal"
+            (config / "xfce4/helpers.rc").write_text(helpers + "\nTerminalEmulator=xfce4-terminal\n")
+        autostart = config / "autostart"
+        autostart.mkdir(exist_ok=True)
+        # These manage host hardware or unlock login secrets, not virtual devices.
+        for name in (
+            "nm-applet", "blueman", "xfce4-power-manager", "light-locker", "xfce4-screensaver",
+            "gnome-keyring-pkcs11", "gnome-keyring-secrets", "gnome-keyring-ssh",
+            "org.gnome.SettingsDaemon.Color", "xiccd",
+        ):
+            (autostart / f"{name}.desktop").write_text("[Desktop Entry]\nType=Application\nHidden=true\n")
+        self.env["XDG_CONFIG_DIRS"] = f"{config}:{directories}"
 
     @property
     def audio_available(self):
-        return self.audio_process is not None and self.audio_process.returncode is None
-
-    async def start_audio(self):
-        if not all(shutil.which(name) for name in ("pulseaudio", "ffmpeg", "pactl")):
-            return
-        socket = self.runtime / "audio.sock"
-        self.env.update(
-            PULSE_SERVER=f"unix:{socket}",
-            PULSE_SINK="desktop",
-            PULSE_SOURCE="desktop.monitor",
-        )
-        try:
-            with (self.runtime / "audio.log").open("wb") as output:
-                self.audio_process = await self.spawn(
-                    "pulseaudio",
-                    "--daemonize=no",
-                    "--use-pid-file=no",
-                    "--exit-idle-time=-1",
-                    "--disable-shm=yes",
-                    "--log-target=stderr",
-                    "-n",
-                    "--load=module-null-sink sink_name=desktop rate=48000 channels=2",
-                    # Only this workspace's Unix socket; clients run as its OS user.
-                    f"--load=module-native-protocol-unix socket={socket} auth-cookie-enabled=0",
-                    stdout=output,
-                    stderr=output,
-                )
-            for _ in range(50):
-                if self.audio_process.returncode is not None:
-                    raise RuntimeError("Desktop audio server exited")
-                if socket.exists():
-                    await self.run("pactl", "info")
-                    return
-                await asyncio.sleep(0.1)
-            raise RuntimeError("Desktop audio server did not start")
-        except (OSError, RuntimeError, TimeoutError):
-            log.warning(
-                "Desktop audio unavailable; continuing without sound", exc_info=True
-            )
-            if self.audio_process:
-                await self.stop_process(self.audio_process)
-            self.audio_process = None
-            for key in ("PULSE_SERVER", "PULSE_SINK", "PULSE_SOURCE"):
-                self.env.pop(key, None)
+        return self.audio.available
 
     async def stream_audio(self, ws):
-        process = await self.spawn(
-            "ffmpeg", "-nostdin", "-loglevel", "error",
-            "-f", "pulse", "-sample_rate", "48000", "-channels", "2",
-            "-fragment_size", "3840", "-i", "desktop.monitor",
-            "-c:a", "libopus", "-b:a", "64k", "-vbr", "off",
-            "-application", "lowdelay", "-frame_duration", "20",
-            "-f", "webm", "-live", "1", "-cluster_time_limit", "100",
-            "-flush_packets", "1", "pipe:1",
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.DEVNULL,
-        )
-        self.peers.add(ws)
-
-        async def outgoing():
-            # Forward the WebM stream unchanged; the browser handles Opus decoding.
-            while data := await process.stdout.read(4096):
-                await asyncio.wait_for(ws.send_bytes(data), 2)
-
-        async def incoming():
-            while (await ws.receive())["type"] != "websocket.disconnect":
-                pass
-
-        tasks = [asyncio.create_task(outgoing()), asyncio.create_task(incoming())]
-        try:
-            await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
-        finally:
-            for task in tasks:
-                task.cancel()
-            await asyncio.gather(*tasks, return_exceptions=True)
-            self.peers.discard(ws)
-            await self.stop_process(process)
+        await self.audio.stream(ws)
 
     async def screenshot(self):
         path = self.runtime / "screenshot.png"
@@ -343,8 +395,7 @@ class Desktop:
                 await peer.close(code=1012)
         for process in reversed(self.processes):
             await self.stop_process(process)
-        if self.audio_process:
-            await self.stop_process(self.audio_process)
+        await self.audio.close()
         if self.fs.username:
             await self.run("rm", "-rf", "--", str(self.runtime))
         else:
@@ -352,30 +403,43 @@ class Desktop:
 
 
 async def get_desktop(request, fs):
+    if DESKTOP_MODE == "host" and (MULTI_USER or fs.username):
+        raise HTTPException(403, "Host desktop requires single-user operation as the logged-in desktop user.")
     if not available():
-        raise HTTPException(503, "Desktop is not installed on this terminal")
-    if sys.platform in ("darwin", "win32"):
-        from open_terminal.desktop_native import check_permissions
+        raise HTTPException(503, "Desktop dependencies for the selected mode are not installed. See docs/configuration.md#desktop.")
+    if DESKTOP_MODE == "host" and sys.platform == "darwin":
+        from open_terminal.desktop.native import check_permissions
 
         check_permissions()
-    key = (request.headers.get("x-user-id", ""), fs.home)
+    key = ("host" if DESKTOP_MODE == "host" else request.headers.get("x-user-id", ""), fs.home)
     async with startup_lock:
         desktop = desktops.get(key)
-        if desktop and all(p.returncode is None for p in desktop.processes):
+        if desktop and not getattr(desktop, "closed", False) and all(p.returncode is None for p in desktop.processes):
             return desktop
         if desktop:
             await desktop.close()
             desktops.pop(key, None)
-        if sys.platform in ("darwin", "win32"):
-            from open_terminal.desktop_native import NativeDesktop
+        if DESKTOP_MODE == "host":
+            if host_backend() == "portal":
+                from open_terminal.desktop.portal import PortalDesktop
 
-            desktop = NativeDesktop(fs)
+                desktop = PortalDesktop(fs)
+            else:
+                from open_terminal.desktop.native import NativeDesktop
+
+                desktop = NativeDesktop(fs)
+        elif virtual_backend() == "wayland":
+            from open_terminal.desktop.wayland import WaylandDesktop
+
+            desktop = WaylandDesktop(fs)
         else:
             desktop = Desktop(fs)
         try:
             await desktop.start()
-        except BaseException:
+        except BaseException as exc:
             await desktop.close()
+            if isinstance(exc, (OSError, RuntimeError, TimeoutError)):
+                raise HTTPException(503, str(exc) or "Desktop startup timed out") from exc
             raise
         desktops[key] = desktop
         return desktop
@@ -396,7 +460,9 @@ async def connect(request: Request, fs: UserFS = Depends(get_filesystem)):
         "height": desktop.height,
         "transport": desktop.transport,
         "platform": sys.platform,
+        "mode": DESKTOP_MODE,
         "audio": getattr(desktop, "audio_available", False),
+        "clipboard": getattr(desktop, "clipboard", desktop.transport == "vnc"),
     }
 
 
@@ -409,7 +475,8 @@ async def connect(request: Request, fs: UserFS = Depends(get_filesystem)):
 async def screenshot(request: Request, fs: UserFS = Depends(get_filesystem)):
     """Return an image of the same desktop the user sees. Starts it if needed.
     Coordinates are pixels in the returned image. Inspect before interacting.
-    On macOS and Windows this is the logged-in user's primary screen, shared across workspaces.
+    Host mode shares the logged-in user's screen across workspaces.
+    Virtual mode uses a separate Linux desktop.
     """
     desktop = await get_desktop(request, fs)
     async with desktop.actions:
@@ -466,9 +533,9 @@ class ActionRequest(BaseModel):
 
 
 async def perform_action(desktop, body):
-    if desktop.transport == "frames":
+    if hasattr(desktop, "perform"):
         try:
-            await asyncio.to_thread(desktop.perform, body)
+            await desktop.work(desktop.perform, body)
         except ValueError as exc:
             raise HTTPException(400, str(exc)) from exc
         await asyncio.sleep(0.1)
@@ -535,7 +602,7 @@ async def action(
     Executes 1–50 actions in order and returns one final screenshot.
     Each item can click, double-click, move, drag, scroll, type, or press a key.
     Use desktop_screenshot first and work from that image's pixel coordinates.
-    Native macOS/Windows share the logged-in desktop. Type pastes literal text.
+    Host mode shares the logged-in desktop. Type enters literal text.
     Batches stop on failure and report completed_actions and failed_action_index
     (zero-based, null if only the final screenshot failed). Completed actions are
     not rolled back; the failed action may also have taken effect. Inspect the

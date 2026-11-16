@@ -1,6 +1,6 @@
 [project]
 name = "open-terminal"
-version = "0.17.7"
+version = "0.17.17"
 description = "A remote computer API."
 license = "MIT"
 readme = "README.md"
@@ -10,16 +10,16 @@ authors = [
 requires-python = ">=3.11"
 dependencies = [
     "fastapi==0.136.3",
-    "pydantic==2.13.4",
     "uvicorn[standard]==0.54.0",
+    "watchfiles==1.3.0",
     "psutil>=7.2.2",
+    "pydantic==2.13.4",
     "click>=8.1.0",
     "httpx==0.28.1",
+    "websockets==15.0.1",
     "python-multipart==0.0.32",
     "aiofiles==25.1.0",
     "pypdf==6.21.4",
-    "watchfiles==1.3.0",
-    "websockets==15.0.1",
     "python-docx>=1.0.0",
     "openpyxl>=3.1.0",
     "python-pptx>=1.0.0",
@@ -27,9 +27,12 @@ dependencies = [
     "xlrd>=2.0.0",
     "pywinpty>=2.0.0; sys_platform == 'win32'",
     "pillow==13.0.0",
-    "mss>=10.0.0; sys_platform == 'darwin' or sys_platform == 'win32'",
-    "pyautogui>=0.9.54; sys_platform == 'darwin' or sys_platform == 'win32'",
-    "pyperclip>=1.9.0; sys_platform == 'darwin' or sys_platform == 'win32'",
+    "mss>=10.0.0",
+    "pyautogui>=0.9.54",
+    "pyperclip>=1.9.0",
+    "dbus-next>=0.2.3; sys_platform == 'linux'",
+    "pyobjc-framework-ScreenCaptureKit>=11.0; sys_platform == 'darwin'",
+    "soundcard>=0.4.5; sys_platform == 'win32'",
 ]
 
 [project.optional-dependencies]

@@ -40,6 +40,151 @@ You can also point to a specific config file:
 open-terminal run --config /path/to/my-config.toml
 ```
 
+## Desktop
+
+Linux defaults to a **separate XFCE virtual desktop**, even when GNOME is installed.
+Docker `latest` includes XFCE. Select GNOME explicitly when wanted:
+
+```sh
+open-terminal run                             # XFCE (default)
+open-terminal run --desktop-environment gnome # Explicit GNOME
+```
+
+On **Ubuntu 26.04 and other Wayland-only GNOME installations**, install:
+
+```sh
+sudo apt install gnome-shell dbus-daemon pipewire wireplumber gstreamer1.0-tools gstreamer1.0-pipewire gstreamer1.0-plugins-base libgl1-mesa-dri
+open-terminal run --desktop-mode virtual --desktop-environment gnome
+```
+
+Open Terminal starts a headless GNOME Shell with its own virtual monitor, D-Bus
+session, and PipeWire services. It works over SSH without a graphical login or
+an on-screen permission prompt. Install the optional `x11vnc` package
+(`sudo apt install x11vnc`) to use noVNC, like XFCE, then restart Open Terminal.
+Without it, GNOME uses the frame viewer and the Desktop option remains available.
+Commands launched through the API inherit this virtual
+desktop's display and bus so Wayland apps open there. The logged-in host desktop
+is not used. This backend currently requires single-user mode;
+multi-user deployments keep the XFCE fallback when GNOME is Wayland-only.
+It is tested with Ubuntu 26.04/GNOME 50.
+
+For **GNOME Wayland audio**, install these optional packages, then restart Open Terminal:
+
+```sh
+sudo apt install pipewire-pulse pulseaudio-utils ffmpeg
+```
+
+Click the viewer's speaker button to unmute. Sound works with both noVNC and the
+frame viewer through a separate authenticated audio stream. Apps in the virtual
+desktop use its private sound server, including apps launched through the API.
+The host's sound and microphone are not captured. Without the audio packages,
+the desktop remains available without sound.
+
+With noVNC, GNOME still runs on Wayland: PipeWire supplies frames to
+[`x11vnc`'s raw-framebuffer mode](https://github.com/LibVNC/x11vnc/blob/master/x11vnc.1),
+and input goes back through the owned Mutter session. LibVNCServer handles the
+VNC protocol. Each authenticated viewer gets a private socket pair; no VNC TCP
+port is opened. Browser paste requires an updated Open WebUI and transfers UTF-8
+text through the private GNOME clipboard. Automatic clipboard synchronization
+is not provided by this backend.
+
+Ubuntu's [documented GNOME remote access route is RDP](https://documentation.ubuntu.com/desktop/en/24.04/how-to/share-your-desktop-remotely/).
+The raw-framebuffer transport above keeps noVNC compatibility using packaged dependencies.
+Upstream [GNOME Remote Desktop](https://github.com/GNOME/gnome-remote-desktop/blob/50.2/README.md)
+also supports headless VNC, but Ubuntu 26.04 builds it without VNC support.
+[TigerVNC's `w0vncserver`](https://tigervnc.org/doc/w0vncserver.html) shares an
+existing Wayland session through the remote-desktop portal; it does not create
+the separate desktop. [`wayvnc`](https://github.com/any1/wayvnc) does not support GNOME.
+
+For **XFCE or older GNOME installations with an X11 session**, install the VNC tools:
+
+```sh
+sudo apt install tigervnc-standalone-server dbus-x11 x11-utils xauth xdotool scrot xclip
+```
+
+You also need a compatible desktop session: `gnome-session` with X11 support,
+or `xfce4 xfce4-terminal`. Debian 13 packages GNOME's X11 session separately as
+`gnome-session-xsession`; install it as well when using GNOME there.
+Keep your existing display manager if the installer
+asks; Open Terminal starts its own session and does not need LightDM or GDM.
+When GNOME has no X11 session, Open Terminal selects the Wayland backend instead
+of TigerVNC. Missing dependencies produce an error for the selected backend;
+they never cause a connection to the host desktop. Restart after installation.
+
+Virtual XFCE sessions prefer `xfce4-terminal` and use their own session defaults
+so GNOME startup services are not inherited. Host network, power, color, and
+login-keyring autostart services are disabled in the virtual session only;
+host settings and authentication policy are unchanged. Applications can still
+request access to the login keyring through D-Bus and prompt to unlock it;
+disabling autostart does not unlock the keyring. If Ubuntu's terminal
+shows “Failed to connect to user scope bus,” press **Alt+F2** in the desktop and
+run `xfce4-terminal`.
+
+For audio in these X11 virtual desktops, install `pulseaudio pulseaudio-utils ffmpeg`
+and restart Open Terminal. The full Docker images already include these packages.
+Slim images require desktop and audio packages to be installed separately.
+
+To share **your actual logged-in desktop and its open windows**, opt in explicitly:
+
+```sh
+open-terminal run --desktop-mode host
+```
+
+Host mode requires single-user operation as the desktop's OS user. On Linux
+X11, run from a graphical terminal so `DISPLAY` and `XAUTHORITY` identify that
+session; install `xclip` for clipboard input. On Wayland/GNOME, install:
+
+```sh
+sudo apt install xdg-desktop-portal xdg-desktop-portal-gnome gstreamer1.0-tools gstreamer1.0-pipewire gstreamer1.0-plugins-base
+```
+
+Approve monitor, keyboard, and pointer access once in the dialog on your Ubuntu
+desktop. Open Terminal requests persistent authorization and remembers it when
+the portal grants it, so later connections and server restarts can reuse that
+approval, including over SSH. Older portals, revoked permissions, or a changed
+monitor may require approval again. Sharing can be stopped from the desktop's
+sharing indicator. A GNOME VNC/RDP server is not needed.
+From SSH, run as the same OS user: Open Terminal can reach that user's existing
+desktop portal even when `XDG_SESSION_TYPE=tty`. Someone must still be logged in
+to the graphical desktop and approve the initial dialog there. Host mode never starts
+a new desktop as a fallback. Wayland text input sends Unicode key events.
+Host audio captures the logged-in desktop's sound output when you unmute the
+viewer. It does not capture the microphone. Install **FFmpeg** with Opus support
+and ensure `ffmpeg` is on the server's `PATH`, then restart Open Terminal:
+
+| Host platform | Capture method and requirements |
+| --- | --- |
+| Linux, X11 or Wayland | The current user's PulseAudio/PipeWire output monitor. On Ubuntu/Debian, install `pulseaudio-utils ffmpeg`. Use the existing desktop audio server. |
+| macOS 13+ | ScreenCaptureKit system audio. Allow screen/system audio recording for the app running Open Terminal. FFmpeg can be installed with `brew install ffmpeg`. |
+| Windows | WASAPI loopback on the default output device. Install FFmpeg and run Open Terminal in the logged-in desktop session. No virtual audio driver is needed. |
+
+The macOS and Windows Python capture bindings install automatically on their
+respective platforms. Capture starts on unmute and stops on mute or disconnect.
+After changing the default speakers/headphones on Linux or Windows, mute and
+unmute to select the new output. Missing audio dependencies or denied capture
+permission do not disable desktop sharing. Docker virtual desktops use their
+own audio server; a container does not automatically gain access to its host's sound.
+
+SSH host mode uses the same OS user's desktop bus at `/run/user/<uid>/bus`,
+even if the SSH shell has a private D-Bus address. Startup errors identify the
+failed portal request or PipeWire capture stage and include GStreamer errors.
+A permission timeout means you should check the sharing dialog on the unlocked
+Ubuntu desktop; it will not appear in the SSH terminal.
+
+The authorization token is stored with owner-only permissions in
+`$XDG_STATE_HOME/open-terminal/desktop-restore-token` (default:
+`~/.local/state/open-terminal/desktop-restore-token`) and renewed after each
+successful portal connection. To forget saved approval, stop Open Terminal and
+delete that file; the next connection will ask again. If the portal does not
+grant persistent access or the token cannot be saved, the server logs a warning.
+
+The equivalent environment variables are `OPEN_TERMINAL_DESKTOP_MODE`
+(`virtual` or `host`) and `OPEN_TERMINAL_DESKTOP_ENVIRONMENT`
+(`xfce` by default, or `gnome`; `auto` is retained as an alias for XFCE);
+TOML keys are `desktop_mode` and `desktop_environment`. CLI flags take precedence.
+Restart after changing modes.
+macOS and Windows keep their existing host-desktop behavior by default.
+
 ## Use your running Chrome
 
 Browser defaults to `managed`: Open Terminal launches a separate Chrome profile.

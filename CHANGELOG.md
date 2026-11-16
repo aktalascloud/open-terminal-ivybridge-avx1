@@ -4,6 +4,103 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.17.17] - 2026-11-15
+
+### Fixed
+
+- Prevented XFCE's `xiccd` color service from starting automatically in virtual desktops, avoiding unnecessary color-profile authentication prompts. Host color management and application-requested keyring unlocks are unchanged.
+
+## [0.17.16] - 2026-11-15
+
+### Fixed
+
+- Virtual XFCE sessions now use XFCE session settings and prefer XFCE Terminal over Ubuntu's systemd-dependent default terminal. Session-local startup overrides disable selected host network, power, GNOME color, and login-keyring autostart entries, without changing host settings or authentication policy.
+- Multi-user commands now retain their explicit desktop and audio environment after switching users, allowing API-launched applications to use their own desktop's sound server and terminal settings.
+
+## [0.17.15] - 2026-11-15
+
+### Added
+
+- Host desktop audio on Linux (PulseAudio/PipeWire output monitors), macOS 13+ (ScreenCaptureKit), and Windows (WASAPI loopback). Install FFmpeg and unmute in the viewer to capture system output. Capture stops on mute/disconnect, and audio remains optional for desktop sharing.
+- Separate GNOME Wayland desktops now support audio in both the noVNC and frame viewers. Install `pipewire-pulse pulseaudio-utils ffmpeg`, restart Open Terminal, and unmute using the viewer's speaker button. Audio uses a private desktop sound server; missing audio packages do not disable the desktop.
+
+### Changed
+
+- Linux virtual desktops now default to XFCE, even when GNOME is installed. Select GNOME with `--desktop-environment gnome` or an explicit environment/config setting. The existing `auto` setting now selects XFCE.
+
+### Fixed
+
+- Fixed audio capture processes hanging during viewer disconnect when their output buffers were full.
+- Restored the Desktop option for GNOME Wayland installations without `x11vnc`. The package is optional: when installed, GNOME uses noVNC; otherwise it keeps the frame viewer.
+
+## [0.17.14] - 2026-11-15
+
+### Fixed
+
+- Pasting text into a virtual GNOME desktop now uses its private clipboard, preserving Unicode and avoiding modifier-key races with viewer input.
+
+## [0.17.13] - 2026-11-15
+
+### Changed
+
+- Separate GNOME Wayland desktops now use the noVNC viewer through LibVNCServer's raw-framebuffer backend. Install `x11vnc` in addition to the existing GNOME Wayland dependencies. Browser paste requires an updated Open WebUI. The VNC transport uses private sockets and opens no network listening port.
+- Desktop implementation modules now live together in `open_terminal/desktop/`.
+
+## [0.17.12] - 2026-11-15
+
+### Fixed
+
+- Fixed separate GNOME Wayland desktops getting stuck on "Connecting" when Open Terminal is started over SSH. The virtual desktop now excludes the inherited SSH connection marker that could deadlock GNOME's audio initialization on Xwayland.
+
+## [0.17.11] - 2026-11-15
+
+### Added
+
+- You can now start a separate GNOME desktop on Ubuntu 26.04 and other GNOME installations that only support Wayland. Use `open-terminal run --desktop-environment gnome` after installing the packages in the [desktop setup guide](docs/configuration.md#desktop). It works over SSH without a graphical login or on-screen approval. Once the desktop is open, apps launched by assistant commands open there too. This requires single-user mode and does not share sound; use XFCE if you need multiple users or sound sharing.
+- The startup banner now shows the installed Open Terminal version. You can also check it with `open-terminal --version`.
+
+### Fixed
+
+- Fixed sharing your existing Wayland desktop failing because Open Terminal looked for it inside the SSH session. It now finds the same user's logged-in desktop. Someone must still approve sharing on that desktop.
+- Fixed missed replies from the desktop's permission service that could leave sharing waiting until it timed out. Startup errors now identify the failed step and include the screen capture error when available. If approval times out, the message tells you to unlock the desktop and approve its sharing dialog, which does not appear in the SSH terminal.
+
+## [0.17.10] - 2026-11-15
+
+### Added
+
+- You can now share and control your actual logged-in Linux desktop, including its open windows, with `open-terminal run --desktop-mode host`. Supports X11 and compatible Wayland desktops such as Ubuntu GNOME. Run Open Terminal as the desktop's user in single-user mode. On Wayland, approve screen, keyboard, and mouse access on that desktop; you can stop sharing from its sharing indicator. Starting through SSH still requires someone logged in to the graphical desktop to approve access. Sound sharing is not available in host mode.
+
+### Changed
+
+- The separate Linux desktop now uses GNOME when a compatible GNOME X11 session is installed, otherwise XFCE. You can choose explicitly with `--desktop-environment gnome` or `--desktop-environment xfce`. Linux still opens a separate desktop by default, and the full Docker image still includes XFCE.
+- Added [Linux desktop setup instructions](docs/configuration.md#desktop) for both modes, including the packages needed when installing with uv or pip. Missing desktop dependencies now point to those instructions, and startup failures include the underlying error.
+
+## [0.17.9] - 2026-11-14
+
+### Added
+
+- Added support for choosing thinking effort in Claude Code, Pi, and compatible agents such as OpenCode from Open WebUI's model controls. Available choices match the selected model, and models without supported effort settings leave the control hidden. Requires an updated Open WebUI.
+
+### Fixed
+
+- Fixed file requests getting stuck when many tabs or connected clients were watching folders for changes. Opening the same folder in several views now shares the work of detecting changes, and watching folders no longer ties up the resources needed to read files.
+
+### Changed
+
+- Updated the README with a one-line `uvx open-terminal@latest` command that starts the latest release and shows where to set your API key.
+
+## [0.17.8] - 2026-11-13
+
+### Added
+
+- Added support for managing GitHub issues from Open WebUI's Git panel. You can browse and search issues, read their comments, create or edit an issue, add a comment, close it as completed or not planned, and reopen it. Requires an updated Open WebUI and GitHub CLI signed in to an account with access to the repository.
+- Pull-request and issue searches now search GitHub, including matches outside the first 50 items shown. The Git panel can show the repository's total open issue and pull-request counts, and pull-request lists can show labels, last-updated times, and check results. Requires an updated Open WebUI.
+- Terminal tab titles can now show the running program, such as Python or Node, and return to the shell name when it exits, even when the program does not set its own title. Available on Mac and Linux with an updated Open WebUI.
+
+### Fixed
+
+- Fixed coding-agent chats refusing system prompts longer than 65,536 characters. Open Terminal no longer imposes that limit. Claude Code and Pi still have a system-dependent limit; when it is exceeded, the error now says "Agent instructions are too long" instead of "Internal Server Error".
+
 ## [0.17.7] - 2026-11-10
 
 ### Added

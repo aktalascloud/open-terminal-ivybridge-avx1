@@ -1,4 +1,5 @@
 import os
+import sys
 
 from open_terminal import config
 
@@ -100,10 +101,6 @@ EXECUTE_DESCRIPTION = os.environ.get(
     config.get("execute_description", ""),
 )
 
-# Delivery-aware result retention (PR150); unknown outcomes remain recoverable.
-PROCESS_EXPIRY = float(os.environ.get("OPEN_TERMINAL_PROCESS_EXPIRY", config.get("process_expiry", 300)))
-PROCESS_UNDELIVERED_EXPIRY = float(os.environ.get("OPEN_TERMINAL_PROCESS_UNDELIVERED_EXPIRY", config.get("process_undelivered_expiry", 1800)))
-
 # Maximum size (in bytes) for per-process JSONL log files.
 # Once exceeded, the oldest portion is removed on disk; output capture continues.
 MAX_PROCESS_LOG_SIZE = int(
@@ -176,6 +173,18 @@ ENABLE_DESKTOP = os.environ.get(
     "OPEN_TERMINAL_ENABLE_DESKTOP",
     str(config.get("enable_desktop", True)),
 ).lower() not in ("false", "0", "no")
+
+DESKTOP_MODE = os.environ.get(
+    "OPEN_TERMINAL_DESKTOP_MODE",
+    config.get("desktop_mode", "virtual" if sys.platform == "linux" else "host"),
+).lower()
+if DESKTOP_MODE not in ("virtual", "host"):
+    raise ValueError("OPEN_TERMINAL_DESKTOP_MODE must be 'virtual' or 'host'")
+DESKTOP_ENVIRONMENT = os.environ.get(
+    "OPEN_TERMINAL_DESKTOP_ENVIRONMENT", config.get("desktop_environment", "xfce")
+).lower()
+if DESKTOP_ENVIRONMENT not in ("auto", "gnome", "xfce"):
+    raise ValueError("OPEN_TERMINAL_DESKTOP_ENVIRONMENT must be 'auto', 'gnome', or 'xfce'")
 
 ENABLE_SYSTEM_PROMPT = os.environ.get(
     "OPEN_TERMINAL_ENABLE_SYSTEM_PROMPT",
