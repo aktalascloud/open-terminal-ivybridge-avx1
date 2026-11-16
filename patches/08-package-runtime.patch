@@ -169,110 +169,40 @@ index 5008b11834fb475eece51cf16d7e4071f15df96b..42f95788462619e7229d1a0fe19a6a8b
 +
 +exec open-terminal "$@"
 diff --git a/pyproject.toml b/pyproject.toml
-index 48253c1bdeb1040cdd95e8785cd4d8315bcb2e56..9db3734d93f281f3dd5236272601c11ea9c5ff2b 100644
+index a93caae792474bef62c8843d7ad9a7370f03c00d..0af480b4197c42025a8d845d94f5ee82c2232a1a 100644
 --- a/pyproject.toml
 +++ b/pyproject.toml
-@@ -1,51 +1,52 @@
--[project]
--name = "open-terminal"
--version = "0.17.7"
--description = "A remote computer API."
--license = "MIT"
--readme = "README.md"
--authors = [
--    { name = "Timothy Jaeryang Baek", email = "tim@openwebui.com" }
--]
--requires-python = ">=3.11"
--dependencies = [
+@@ -9,23 +9,24 @@ authors = [
+ ]
+ requires-python = ">=3.11"
+ dependencies = [
 -    "fastapi>=0.115.0",
 -    "uvicorn[standard]>=0.34.0",
 -    "watchfiles>=1.1.1",
--    "psutil>=7.2.2",
--    "click>=8.1.0",
++    "fastapi==0.136.3",
++    "uvicorn[standard]==0.54.0",
++    "watchfiles==1.3.0",
+     "psutil>=7.2.2",
++    "pydantic==2.13.4",
+     "click>=8.1.0",
 -    "httpx>=0.27.0",
 -    "websockets>=14.0",
 -    "python-multipart>=0.0.22",
 -    "aiofiles>=25.1.0",
 -    "pypdf>=5.0.0",
--    "python-docx>=1.0.0",
--    "openpyxl>=3.1.0",
--    "python-pptx>=1.0.0",
--    "striprtf>=0.0.26",
--    "xlrd>=2.0.0",
--    "pywinpty>=2.0.0; sys_platform == 'win32'",
--    "pillow>=10.0.0",
--    "mss>=10.0.0; sys_platform == 'darwin' or sys_platform == 'win32'",
--    "pyautogui>=0.9.54; sys_platform == 'darwin' or sys_platform == 'win32'",
--    "pyperclip>=1.9.0; sys_platform == 'darwin' or sys_platform == 'win32'",
--]
--
--[project.optional-dependencies]
--notebooks = ["nbclient>=0.10.0", "ipykernel>=6.0.0"]
--mcp = ["fastmcp>=4.0.0"]
--
--[project.scripts]
--open-terminal = "open_terminal.cli:main"
--
--[build-system]
--requires = ["hatchling"]
--build-backend = "hatchling.build"
--
--[tool.hatch.build.targets.wheel]
--packages = ["open_terminal"]
--
--[dependency-groups]
--dev = [
--    "pytest>=9.0.2",
--]
-+[project]
-+name = "open-terminal"
-+version = "0.17.7"
-+description = "A remote computer API."
-+license = "MIT"
-+readme = "README.md"
-+authors = [
-+    { name = "Timothy Jaeryang Baek", email = "tim@openwebui.com" }
-+]
-+requires-python = ">=3.11"
-+dependencies = [
-+    "fastapi==0.136.3",
-+    "pydantic==2.13.4",
-+    "uvicorn[standard]==0.54.0",
-+    "psutil>=7.2.2",
-+    "click>=8.1.0",
 +    "httpx==0.28.1",
++    "websockets==15.0.1",
 +    "python-multipart==0.0.32",
 +    "aiofiles==25.1.0",
 +    "pypdf==6.21.4",
-+    "watchfiles==1.3.0",
-+    "websockets==15.0.1",
-+    "python-docx>=1.0.0",
-+    "openpyxl>=3.1.0",
-+    "python-pptx>=1.0.0",
-+    "striprtf>=0.0.26",
-+    "xlrd>=2.0.0",
-+    "pywinpty>=2.0.0; sys_platform == 'win32'",
+     "python-docx>=1.0.0",
+     "openpyxl>=3.1.0",
+     "python-pptx>=1.0.0",
+     "striprtf>=0.0.26",
+     "xlrd>=2.0.0",
+     "pywinpty>=2.0.0; sys_platform == 'win32'",
+-    "pillow>=10.0.0",
 +    "pillow==13.0.0",
-+    "mss>=10.0.0; sys_platform == 'darwin' or sys_platform == 'win32'",
-+    "pyautogui>=0.9.54; sys_platform == 'darwin' or sys_platform == 'win32'",
-+    "pyperclip>=1.9.0; sys_platform == 'darwin' or sys_platform == 'win32'",
-+]
-+
-+[project.optional-dependencies]
-+notebooks = ["nbclient>=0.10.0", "ipykernel>=6.0.0"]
-+mcp = ["fastmcp>=4.0.0"]
-+
-+[project.scripts]
-+open-terminal = "open_terminal.cli:main"
-+
-+[build-system]
-+requires = ["hatchling"]
-+build-backend = "hatchling.build"
-+
-+[tool.hatch.build.targets.wheel]
-+packages = ["open_terminal"]
-+
-+[dependency-groups]
-+dev = [
-+    "pytest>=9.0.2",
-+]
+     "mss>=10.0.0",
+     "pyautogui>=0.9.54",
+     "pyperclip>=1.9.0",

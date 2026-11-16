@@ -3,9 +3,9 @@
   "grouping_version": 3,
   "ownership": "applied-downstream-only",
   "project": "terminal",
-  "upstream": "27dbfff3b9eed94798dddeb20db33771da67cb52",
-  "snapshot_source": "95830bba4ac243a4e0e3a6c097aa65cd8986d787",
-  "downstream_tree_without_patches": "47a6ed51623667451d199bc50ab2a0ba721160b6",
+  "upstream": "70504212349d956cf21fbaef66bacd5e285df451",
+  "snapshot_source": "3f88830387b2fb1544ddc0adb82a477e4aa85548",
+  "downstream_tree_without_patches": "50de58be464a6ccd3f03152557e5a9fd4c8eaba5",
   "groups": [
     {
       "patch": "01-credential-isolation.patch",
@@ -19,7 +19,7 @@
         "open_terminal/utils/git.py",
         "open_terminal/utils/git_line_stats.py"
       ],
-      "sha256": "668a554bb71f24072da77f3e1804e1d70d5f783119b4a9b23662bda9b9dece9e"
+      "sha256": "83ebd5a3a08fe665ce4c2fb51142e0e1d11507ee5a6d06b0964c1dec2d4353df"
     },
     {
       "patch": "02-bounded-search.patch",
@@ -49,7 +49,7 @@
         ".avx1/test_browser_proxy_contracts.py",
         "open_terminal/browser/chrome.py"
       ],
-      "sha256": "7091d83abc0992c5e570b2cc22c3c54cec75f6d27ac471cb2160cdde40895306"
+      "sha256": "885d3d35806e002455a50ec83520ad74d1728280ae5d8d4fa5313e51e521b060"
     },
     {
       "patch": "05-skills-paths.patch",
@@ -78,7 +78,7 @@
         "open_terminal/utils/port.py",
         "open_terminal/utils/runner.py"
       ],
-      "sha256": "b84015a2a607a46789ee70010e717027c90b15ff09c3f750def83f9ee2e544dd"
+      "sha256": "f28fbfa97c78f71a8974a29a713c8ed1d0779d3651fcaac85b574458222a5788"
     },
     {
       "patch": "07-localization-checks.patch",
@@ -98,7 +98,7 @@
         "entrypoint-openshift.sh",
         "pyproject.toml"
       ],
-      "sha256": "79e5d7409800253bf04ee18548d3c92dcfd68751b4b8a920f94f6cb29e7d7eb6"
+      "sha256": "4d61d7b61b94b5be94484cb42f4cdf46ec10ac843cb2b42ae84dae91e3da28c5"
     },
     {
       "patch": "09-portable-install.patch",
@@ -127,7 +127,7 @@
         ".github/workflows/release.yml",
         ".gitignore"
       ],
-      "sha256": "3cd8a7470bdbf77da62a3d59bb3b02932e7052706fd81dfd5fccfb37984cb3d0"
+      "sha256": "76dace59d9cca5ba36f2935db9300e3da1979adc4728b255fbb33c574045b78d"
     },
     {
       "patch": "11-project-docs.patch",
@@ -138,7 +138,7 @@
         "README.ru.md",
         "SECURITY.md"
       ],
-      "sha256": "24a73296937ca56eee176942076e2ab2be3cd001760e2e62d17e1d32089b66fd"
+      "sha256": "bb1ca41b30386212ea2b913a174fca7630b4064585c289f25ff92bec9f5f07ee"
     },
     {
       "patch": "12-fork-records.patch",
@@ -151,20 +151,20 @@
     }
   ],
   "files": {
-    "01-credential-isolation.patch": "668a554bb71f24072da77f3e1804e1d70d5f783119b4a9b23662bda9b9dece9e",
+    "01-credential-isolation.patch": "83ebd5a3a08fe665ce4c2fb51142e0e1d11507ee5a6d06b0964c1dec2d4353df",
     "02-bounded-search.patch": "b15628743df07a83affda512ffcd51ca616b0cbb1b4dc7c9b20c514fa13d2dd8",
     "03-document-comparison.patch": "54b95662b86b3e934c4f0d4ce4b07886b68de123e157f63ea583147c004e0cbd",
-    "04-chrome-proxy.patch": "7091d83abc0992c5e570b2cc22c3c54cec75f6d27ac471cb2160cdde40895306",
+    "04-chrome-proxy.patch": "885d3d35806e002455a50ec83520ad74d1728280ae5d8d4fa5313e51e521b060",
     "05-skills-paths.patch": "e0aa39a71281670d60cedb56a48f2c5acbab0d47861b5542e4205c52484d4665",
-    "06-service-api.patch": "b84015a2a607a46789ee70010e717027c90b15ff09c3f750def83f9ee2e544dd",
+    "06-service-api.patch": "f28fbfa97c78f71a8974a29a713c8ed1d0779d3651fcaac85b574458222a5788",
     "07-localization-checks.patch": "f278c64394461714bfa19007835cbacbf07beaff1d30f5451f2b635aec51c921",
-    "08-package-runtime.patch": "79e5d7409800253bf04ee18548d3c92dcfd68751b4b8a920f94f6cb29e7d7eb6",
+    "08-package-runtime.patch": "4d61d7b61b94b5be94484cb42f4cdf46ec10ac843cb2b42ae84dae91e3da28c5",
     "09-portable-install.patch": "a5f4c34a7c7c47f8f56c4bebdee4b03422237c66a6b0445f57c1f5d3aceeb4c9",
-    "10-ci-build.patch": "3cd8a7470bdbf77da62a3d59bb3b02932e7052706fd81dfd5fccfb37984cb3d0",
-    "11-project-docs.patch": "24a73296937ca56eee176942076e2ab2be3cd001760e2e62d17e1d32089b66fd",
+    "10-ci-build.patch": "76dace59d9cca5ba36f2935db9300e3da1979adc4728b255fbb33c574045b78d",
+    "11-project-docs.patch": "bb1ca41b30386212ea2b913a174fca7630b4064585c289f25ff92bec9f5f07ee",
     "12-fork-records.patch": "cead6825ce0e6a170d29a6980bcbb05c3d67ca34328b5d021feddf18e9ab58de",
     ".gitattributes": "705fd4d6451a31d36b3df7de96f83f30ac976c9b4a6d1e51671d8e2f33e2d0da",
     "series": "94cec36ddda10ff816f5c448a4f40e3ea89dc28d2572ae3ec150b373a387ff94",
-    "README.md": "4fd908b2b61939f05eefaeffde6f92c3b1fe6af161f110dd4eaf71e7724617a9"
+    "README.md": "ecaaf78589b7ea5a0940b189172870e92e730badd31cfe048f005a4e7f03570d"
   }
 }

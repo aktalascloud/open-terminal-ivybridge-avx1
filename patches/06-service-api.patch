@@ -622,10 +622,10 @@ index 0000000000000000000000000000000000000000..3321182100513234e096eb9c9d2e8dc9
 +        env_patch.stop()
 +        fixture.cleanup()
 diff --git a/docs/configuration.md b/docs/configuration.md
-index ca163f11847698e99916d2f1cc6ad647258c9c7d..f306342d268fb2a3590cdec872c8c1a98685dc7c 100644
+index b1aa83f86716e3bb0adbc006fb05781d5ca71381..5a3e8c2060c61cb0e01f657d8f40ba07944c2fb2 100644
 --- a/docs/configuration.md
 +++ b/docs/configuration.md
-@@ -163,3 +163,9 @@ that want a rendered preview can add `preview=true`; when LibreOffice is
+@@ -308,3 +308,9 @@ that want a rendered preview can add `preview=true`; when LibreOffice is
  available the server can return DOCX and PPTX previews as PDF. When rendered
  preview support is not available, the same endpoint falls back to returning the
  original file bytes.
@@ -654,10 +654,10 @@ index 56800279e4193666695b71ce81cf83f45a2f1647..15b1a52e2ced3077657e7a386d97294c
 +
 +main()
 diff --git a/open_terminal/cli.py b/open_terminal/cli.py
-index 45f28366d359324a40d1857e68a2bef647eac225..85fef96abe3632b703567466e701482ae1d03cd0 100644
+index 02d032170fac7ed6fdc952a7a5b91a8aa9ef57b0..c171fa0fb77ee2085ded6ae46280dd7e2a1a4b8f 100644
 --- a/open_terminal/cli.py
 +++ b/open_terminal/cli.py
-@@ -21,6 +21,37 @@ BANNER = r"""
+@@ -23,6 +23,37 @@ BANNER = r"""
          |_|
  """
  
@@ -695,7 +695,7 @@ index 45f28366d359324a40d1857e68a2bef647eac225..85fef96abe3632b703567466e701482a
  
  @main.command()
  @click.option("--host", default=None, help="Bind host (default: 127.0.0.1 with --ipc or --cftunnel, otherwise 0.0.0.0)")
-@@ -47,9 +78,14 @@ BANNER = r"""
+@@ -49,9 +80,14 @@ BANNER = r"""
  )
  @click.option(
      "--cors-allowed-origins",
@@ -712,7 +712,7 @@ index 45f28366d359324a40d1857e68a2bef647eac225..85fef96abe3632b703567466e701482a
  )
  @click.option(
      "--cftunnel", is_flag=True,
-@@ -63,7 +99,7 @@ def run(
+@@ -73,7 +109,7 @@ def run(
      config_path: str | None,
      cwd: str | None,
      api_key: str,
@@ -721,7 +721,7 @@ index 45f28366d359324a40d1857e68a2bef647eac225..85fef96abe3632b703567466e701482a
      cftunnel: bool,
      yes: bool,
      isolated: bool,
-@@ -96,6 +132,9 @@ def run(
+@@ -112,6 +148,9 @@ def run(
      if cftunnel and (type(port) is not int or not 1 <= port <= 65535):
          raise click.UsageError("--cftunnel requires a port between 1 and 65535.")
  
@@ -731,7 +731,7 @@ index 45f28366d359324a40d1857e68a2bef647eac225..85fef96abe3632b703567466e701482a
      if cwd:
          os.chdir(cwd)
  
-@@ -230,12 +269,18 @@ def run(
+@@ -248,12 +287,18 @@ def run(
      default=None,
      help="Working directory for the server process.",
  )
@@ -750,7 +750,7 @@ index 45f28366d359324a40d1857e68a2bef647eac225..85fef96abe3632b703567466e701482a
  ):
      """Start the MCP server (requires 'pip install open-terminal[mcp]')."""
      from open_terminal import config
-@@ -248,6 +293,10 @@ def mcp(
+@@ -266,6 +311,10 @@ def mcp(
      if cwd:
          os.chdir(cwd)
  
@@ -761,7 +761,7 @@ index 45f28366d359324a40d1857e68a2bef647eac225..85fef96abe3632b703567466e701482a
      try:
          from open_terminal.mcp_server import mcp as mcp_server
      except ImportError:
-@@ -258,7 +307,10 @@ def mcp(
+@@ -276,7 +325,10 @@ def mcp(
          )
          raise SystemExit(1)
  
@@ -774,7 +774,7 @@ index 45f28366d359324a40d1857e68a2bef647eac225..85fef96abe3632b703567466e701482a
  
  if __name__ == "__main__":
 diff --git a/open_terminal/main.py b/open_terminal/main.py
-index 4c19e75cbcab6b440c3b7d04d359841b8ef7a667..b1add39ef2bb0efd8d0e76767de22180e1bda19d 100644
+index bce63b1ef29fca29f1adb87c02f469bc250282de..911996c000c435172d48260f75498122df7fd178 100644
 --- a/open_terminal/main.py
 +++ b/open_terminal/main.py
 @@ -28,13 +28,15 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request, UploadFile,
@@ -796,7 +796,7 @@ index 4c19e75cbcab6b440c3b7d04d359841b8ef7a667..b1add39ef2bb0efd8d0e76767de22180
  from open_terminal.utils.fs import UserFS, FullFileResponse as FileResponse, TemporaryFileResponse, text_file_response, line_range_offsets
 @@ -43,7 +45,7 @@ from open_terminal.utils.file_compare import CompareRequest, run_comparison
  from open_terminal.utils.git import GitRepository
- from open_terminal.utils.system import collect_system_info
+ from open_terminal.utils.system import collect_system_info, foreground_process
  from open_terminal.utils.events import system_events
 -from open_terminal.utils.search import search_entries, matching_files, ranked_page
 +from open_terminal.utils.search import is_regular_file, search_entries, matching_files, ranked_page
@@ -1183,7 +1183,7 @@ index 8dfd85a4087fd349ad651d12f049553c0a4f1160..6a6a1e3a1fe17e10c88244a35f43e041
      try:
          while True:
 diff --git a/open_terminal/utils/runner.py b/open_terminal/utils/runner.py
-index 0cb6e4f43ef28b97f7aabe4ca4a3d6c3ebf78bc2..66d96feada59cc7c7428443bbf15ed0f89e288b9 100644
+index c4d571d19e2d810cef6d1c19512cb58759465ac1..93218a814a18eabeb6846d51addc1a5086f20511 100644
 --- a/open_terminal/utils/runner.py
 +++ b/open_terminal/utils/runner.py
 @@ -6,6 +6,7 @@ import signal

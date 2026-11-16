@@ -46,10 +46,10 @@ index 16464a59e72f7b07c4f2ce3f6825ed101976ebdd..e554af0e0e71b2b3c222c18ae3821954
 +OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 +SOFTWARE.
 diff --git a/README.md b/README.md
-index 5dace19c656b8ad51e44e94ae8e5eb585d93ec8c..165139de494e832889f649d52c1098f6065c0121 100644
+index 25cf83ca49bd7f5b69e5ab7b42a7f7006ab54e22..165139de494e832889f649d52c1098f6065c0121 100644
 --- a/README.md
 +++ b/README.md
-@@ -1,136 +1,36 @@
+@@ -1,144 +1,36 @@
 -# Open Terminal
 +# Open Terminal AVX1
  
@@ -107,11 +107,20 @@ index 5dace19c656b8ad51e44e94ae8e5eb585d93ec8c..165139de494e832889f649d52c1098f6
 +Proxy mode rewrites page content; use managed Chrome for sign-ins and sites that need browser origin isolation.
  
 -```bash
+-# uv (replace your-secret-key)
+-uvx open-terminal@latest run --host 0.0.0.0 --port 8000 --api-key your-secret-key
++`run` honors CORS from CLI, environment and TOML in that order. `mcp --api-key` explicitly overrides the existing environment/secret-file/config sources; stdio receives no network arguments.
+ 
+-# Or pip
 -pip install open-terminal
 -open-terminal run --host 0.0.0.0 --port 8000
 -```
 -
--Or run without installing: `uvx open-terminal run --host 0.0.0.0 --port 8000`.
+-Linux defaults to a separate XFCE desktop. Select GNOME explicitly with `--desktop-environment gnome`. GNOME supports Wayland-only systems such as Ubuntu 26.04; it uses noVNC when the optional `x11vnc` package is installed and the frame viewer otherwise. XFCE and older GNOME X11 sessions use noVNC. See [desktop setup](docs/configuration.md#desktop) for required packages. Keep your existing display manager if prompted during installation. Docker `latest` includes XFCE and its dependencies. Sharing your actual logged-in desktop requires `--desktop-mode host`.
+-
+-For GNOME Wayland audio, install `pipewire-pulse pulseaudio-utils ffmpeg`, restart Open Terminal, and click the viewer's speaker button to unmute. Audio is optional and works with either viewer.
+-
+-Host desktop audio is also supported on Linux, macOS 13+, and Windows. Install FFmpeg and follow the [host audio setup](docs/configuration.md#desktop), then unmute in the viewer to share system sound.
 -
 -If no API key is configured, one is generated and printed at startup. For Docker, find it with `docker logs open-terminal`.
 -
@@ -189,8 +198,7 @@ index 5dace19c656b8ad51e44e94ae8e5eb585d93ec8c..165139de494e832889f649d52c1098f6
 -[Open an issue](https://github.com/open-webui/open-terminal/issues) for bugs or setup problems. Report vulnerabilities privately through [GitHub Security Advisories](https://github.com/open-webui/open-terminal/security/advisories/new).
 -
 -## Star History
-+`run` honors CORS from CLI, environment and TOML in that order. `mcp --api-key` explicitly overrides the existing environment/secret-file/config sources; stdio receives no network arguments.
- 
+-
 -<a href="https://star-history.com/#open-webui/open-terminal&Date">
 -  <picture>
 -    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=open-webui/open-terminal&type=Date&theme=dark" />

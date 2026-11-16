@@ -105,7 +105,7 @@ index 0000000000000000000000000000000000000000..c19d78b8ec464dae86286188d50e1fe7
 +        env_patch.stop()
 +        fixture.cleanup()
 diff --git a/open_terminal/browser/chrome.py b/open_terminal/browser/chrome.py
-index 608b55ab8a406fc38c9bdf04522967c16b6bd324..11422aea4f2805b44802b82e33abd5918a53cd34 100644
+index 91277209124bccc300d5ca27a2b2cbd399d783f5..73333e3848e7a22c7b8ce27b9b4ee4ac61362bb8 100644
 --- a/open_terminal/browser/chrome.py
 +++ b/open_terminal/browser/chrome.py
 @@ -269,6 +269,7 @@ async def windows_host(args, profile, home):
