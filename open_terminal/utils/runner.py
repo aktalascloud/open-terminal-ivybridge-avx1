@@ -8,8 +8,6 @@ import time
 from abc import ABC, abstractmethod
 from open_terminal.env import sanitized_environ
 
-from open_terminal.env import sanitized_environ
-
 try:
     import fcntl
     import pty
