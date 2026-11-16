@@ -29,7 +29,8 @@ env_patch.start()
 from open_terminal import config
 config._SYSTEM_CONFIG_PATH = FOLDER / 'no-system-config.toml'
 config.init()
-from open_terminal import main, desktop
+from open_terminal import main
+import open_terminal.desktop.router as desktop
 from open_terminal.browser import router as browser
 from open_terminal.browser import chrome
 from open_terminal.frames import Frames
@@ -128,8 +129,10 @@ class HttpAndSocket(unittest.TestCase):
             calls.append(body.text)
             if len(calls) == 2:
                 raise OSError('synthetic uncertain operation')
+        async def work(method, *args):
+            return method(*args)
         fake = NS(actions=asyncio.Lock(), transport='frames', width=10, height=10,
-                  perform=perform, screenshot=AsyncMock())
+                  work=work, perform=perform, screenshot=AsyncMock())
         with patch.object(desktop, 'get_desktop', AsyncMock(return_value=fake)):
             response = self.client.post('/desktop/action', headers=AUTH,
                 json={'actions': [{'action': 'type', 'text': text} for text in ('one', 'two', 'three')]})
