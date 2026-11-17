@@ -169,7 +169,7 @@ index 5008b11834fb475eece51cf16d7e4071f15df96b..42f95788462619e7229d1a0fe19a6a8b
 +
 +exec open-terminal "$@"
 diff --git a/pyproject.toml b/pyproject.toml
-index a93caae792474bef62c8843d7ad9a7370f03c00d..0af480b4197c42025a8d845d94f5ee82c2232a1a 100644
+index e298679b29646385f3eb2d2b068bd794d26e38ab..05e921192e1aca7ae23d9ebcf312060e8a84f0d4 100644
 --- a/pyproject.toml
 +++ b/pyproject.toml
 @@ -9,23 +9,24 @@ authors = [
