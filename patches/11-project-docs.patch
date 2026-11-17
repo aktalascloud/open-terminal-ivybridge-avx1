@@ -46,47 +46,40 @@ index 16464a59e72f7b07c4f2ce3f6825ed101976ebdd..e554af0e0e71b2b3c222c18ae3821954
 +OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 +SOFTWARE.
 diff --git a/README.md b/README.md
-index bc88fd3ee77335d9b54d3f141d35213d17e7679e..165139de494e832889f649d52c1098f6065c0121 100644
+index bc88fd3ee77335d9b54d3f141d35213d17e7679e..eecb2c5c16c6de0bfd73ff970155afa32c95837b 100644
 --- a/README.md
 +++ b/README.md
-@@ -1,147 +1,36 @@
+@@ -1,147 +1,9 @@
 -# Open Terminal
 +# Open Terminal AVX1
  
 -**A computer for your AI agents.** Run commands, search and manage files, execute code, and work with browsers and desktops through a self-hosted REST API. Connect it to [Open WebUI](https://github.com/open-webui/open-webui), or use it with your own tools.
-+[Русский](README.ru.md)
++[Upstream](https://github.com/open-webui/open-terminal) · [ZIP + Install.cmd](https://github.com/aktalascloud/open-terminal-ivybridge-avx1/releases/latest) · [Applied patches](patches/README.md)
  
 -[Documentation](https://docs.openwebui.com/features/open-terminal/) · [Changelog](CHANGELOG.md) · [Report an issue](https://github.com/open-webui/open-terminal/issues)
-+Unofficial fork with reviewed agent/MCP fixes and extended Russian UI. One latest ZIP + Install.cmd.
++Build with Python 3.12+, Git and GitHub CLI: `Build.cmd status`, then `Build.cmd build`. CI and checks are in `.avx1/`. Keep user data, model weights and credentials outside the source checkout.
  
 -[![Open Terminal in Open WebUI](https://docs.openwebui.com/assets/images/open-terminal-file-browser-54b7cab404a39c11532ca356b40ff6ed.png)](https://docs.openwebui.com/features/open-terminal/)
-+[Upstream](https://github.com/open-webui/open-terminal) · [Release](https://github.com/aktalascloud/open-terminal-ivybridge-avx1/releases/latest) · [Patches](patches/README.md)
++Независимый Windows-сервис, авторизация с сохранённым ключом, MCP и ограниченный поиск. Сессии и настройки хранятся отдельно.
  
 -[![PyPI](https://img.shields.io/pypi/v/open-terminal)](https://pypi.org/project/open-terminal/)
 -[![License](https://img.shields.io/github/license/open-webui/open-terminal)](LICENSE)
 -[![GitHub stars](https://img.shields.io/github/stars/open-webui/open-terminal?style=social)](https://github.com/open-webui/open-terminal)
-+Official 0.16.1 avoids recursive filesystem watches outside Git repositories while retaining Git/worktree metadata watches. Authenticated readiness and independent managed startup are preserved.
- 
+-
 -## Installation
-+## Build
- 
+-
 -### Docker
-+Requires Python 3.12+, Git and GitHub CLI for CI. No LLM, model weights or Codex dependency.
- 
+-
 -```bash
 -docker run -d --name open-terminal --restart unless-stopped \
 -  -p 8000:8000 \
 -  -v open-terminal:/home/user \
 -  -e OPEN_TERMINAL_API_KEY=your-secret-key \
 -  ghcr.io/open-webui/open-terminal:latest
-+```cmd
-+Build.cmd status
-+Build.cmd build
- ```
- 
+-```
+-
 -The API is available at `http://localhost:8000`, with interactive docs at [/docs](http://localhost:8000/docs). The volume keeps your files between container updates. Replace `your-secret-key` with your own key.
-+`build` verifies the clean published commit and dispatches the pinned workflow. For a prepared local compiler/SDK environment: `Build.cmd local`. Dependencies, flags, tests and license gates are in `.avx1/`; lockfiles and source history are retained. Signing keys stay outside the repository.
- 
+-
 -| Image tag | Includes |
 -| --- | --- |
 -| `latest` | Full toolkit: Python, Node.js, build tools, browser, desktop, and document tools |
@@ -95,22 +88,17 @@ index bc88fd3ee77335d9b54d3f141d35213d17e7679e..165139de494e832889f649d52c1098f6
 -| `slim` | Minimal Debian environment with git, curl, and jq |
 -| `alpine` | Minimal Alpine environment with git, curl, and jq |
 -| `openshift` | Minimal image for OpenShift restricted non-root policies |
-+## Run and verify
- 
+-
 -Use `:agents` to run `codex` or `claude` from a terminal, signing in with your own account. See the [deployment guide](docs/deployment.md) for agent setup, image capabilities, custom packages, and updates.
-+Mainstream 0.16 adds owned browser sessions, filesystem/port/process events and desktop APIs. Capture and input start only on an authenticated API/tool request; native Windows/macOS use the signed-in desktop shared across workspaces. Windows CDP stays on loopback without a network proxy. Search does not open device/FIFO/socket files or cross mounts; an explicitly selected mount remains searchable.
- 
+-
 -### Python
-+Content-match previews retain original UTF-16 columns; the 1 MiB content-search cap also applies with ripgrep. Oversized files can still match by name. This is not a global response-byte budget.
- 
+-
 -Requires Python 3.11+.
-+Proxy mode rewrites page content; use managed Chrome for sign-ins and sites that need browser origin isolation.
- 
+-
 -```bash
 -# uv (replace your-secret-key)
 -uvx open-terminal@latest run --host 0.0.0.0 --port 8000 --api-key your-secret-key
-+`run` honors CORS from CLI, environment and TOML in that order. `mcp --api-key` explicitly overrides the existing environment/secret-file/config sources; stdio receives no network arguments.
- 
+-
 -# Or pip
 -pip install open-terminal
 -open-terminal run --host 0.0.0.0 --port 8000
@@ -209,55 +197,11 @@ index bc88fd3ee77335d9b54d3f141d35213d17e7679e..165139de494e832889f649d52c1098f6
 -    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=open-webui/open-terminal&type=Date" />
 -  </picture>
 -</a>
-+Use the single release package. Keep user data separate from source. Settings, endpoints and model selection are runtime configuration, not build requirements. Ivy Bridge: AVX/F16C, O3 and verified LTO, without AVX2/FMA/PGO/fast-math. Actual native flags and prebuilt components are identified in the manifest.
- 
+-
 -## License
-+Current checks and measurements: [.avx1/measurements/latest.json](.avx1/measurements/latest.json). CPU microbenchmarks are not LLM tokens/s. Original licenses and notices apply.
- 
+-
 -[MIT](LICENSE). Bundled third-party tools retain their own licenses and terms.
-+Current maintainer-only applied differences: [patches](patches/README.md).
-diff --git a/README.ru.md b/README.ru.md
-new file mode 100644
-index 0000000000000000000000000000000000000000..4a3de8f506a15c1b96037974d75376e5f48706ca
---- /dev/null
-+++ b/README.ru.md
-@@ -0,0 +1,36 @@
-+# Open Terminal AVX1
-+
-+[English](README.md)
-+
-+Неофициальный форк: проверенные исправления для агентов/MCP и дополненный русский интерфейс. Один актуальный ZIP + Install.cmd.
-+
-+[Upstream](https://github.com/open-webui/open-terminal) · [Release](https://github.com/aktalascloud/open-terminal-ivybridge-avx1/releases/latest) · [Patches](patches/README.md)
-+
-+Official 0.16.1 отключает рекурсивное наблюдение вне Git, сохраняя наблюдение Git и метаданных рабочих деревьев. Защищённый health и независимый запуск сервиса сохранены.
-+
-+## Сборка
-+
-+Нужны Python 3.12+, Git и GitHub CLI для CI. Сборка не зависит от модели, её весов или Codex.
-+
-+```cmd
-+Build.cmd status
-+Build.cmd build
-+```
-+
-+`build` проверяет чистоту опубликованного коммита и запускает закреплённый workflow. При готовом локальном компиляторе/SDK: `Build.cmd local`. Зависимости, флаги, тесты и проверки лицензий — в `.avx1/`. Lockfiles и история исходников сохранены. Ключи подписи в репозиторий не входят.
-+
-+## Установка и проверки
-+
-+Mainstream 0.16 добавляет браузерные сессии с проверкой владельца, события файлов/портов/процессов и desktop API. Захват и ввод начинаются только по авторизованному запросу API/инструмента; native Windows/macOS используют общий рабочий стол вошедшего пользователя. Windows CDP остаётся на loopback без сетевого прокси. Поиск не открывает устройства/FIFO/сокеты и не пересекает точки монтирования; явно выбранная точка остаётся доступной для поиска.
-+
-+Превью совпадений сохраняют исходные UTF-16-позиции; ограничение поиска по содержимому1 МиБ действует и с ripgrep. Большие файлы остаются доступны для поиска по имени. Это не общий лимит байтов всех ответов.
-+
-+Режим Proxy переписывает содержимое страниц; для входа в аккаунты и сайтов с изоляцией браузерных origins используйте управляемый Chrome.
-+
-+`run` учитывает CORS из CLI, окружения и TOML в этом порядке. `mcp --api-key` явно заменяет ключ из окружения, secret-файла или конфигурации; stdio не получает сетевые аргументы.
-+
-+Используйте единственный пакет релиза. Пользовательские данные храните отдельно от исходников. Адреса серверов и выбор моделей задаются настройками, а не требованиями сборки. Ivy Bridge: AVX/F16C, O3 и проверенный LTO, без AVX2/FMA/PGO/fast-math. Реальные флаги и prebuilt-компоненты указаны в манифесте.
-+
-+Последние проверки и замеры: [.avx1/measurements/latest.json](.avx1/measurements/latest.json). Микрозамеры CPU не означают скорость LLM. Исходные лицензии и уведомления сохранены.
-+
-+Только наши текущие применённые изменения: [patches](patches/README.md).
++[Checks and measurements](.avx1/measurements/latest.json)
 diff --git a/SECURITY.md b/SECURITY.md
 index c20b303529a703ce9cc71fdf2a496ce641c06269..cc86e702f1ac18079178f7c41aa35e093e6605bd 100644
 --- a/SECURITY.md

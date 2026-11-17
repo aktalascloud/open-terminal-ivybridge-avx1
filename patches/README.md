@@ -5,7 +5,7 @@ Only currently applied maintainer differences from the exact official baseline a
 Mainstream-only commits, rejected proposals and reverted experiments are excluded.
 Коммиты самого mainstream, неприменённые предложения и отменённые эксперименты исключены.
 
-Official baseline: `711972fab6a9e435e154862933357d1631e87f90`. Downstream snapshot: `416c3cf70cf66dbd643946bd011bffc6c1a59dd2`.
+Official baseline: `711972fab6a9e435e154862933357d1631e87f90`. Downstream snapshot: `cbd5f2426e16919dab9f78327833078fa03768d9`.
 Patches are already applied in this fork. Apply `series` only to a clean checkout of that exact baseline.
 В этом форке патчи уже применены. `series` предназначен только для чистого checkout указанной базы.
 Apply the numbered patches in the order listed in `series`. Each row describes one topic.
@@ -26,5 +26,5 @@ Credential and OS-user identity isolation, managed authenticated readiness, boun
 | 8 | [08-package-runtime.patch](08-package-runtime.patch) | Set Terminal package dependencies and container entry points / Настраивает зависимости Terminal и команды запуска контейнера. | 5 |
 | 9 | [09-portable-install.patch](09-portable-install.patch) | Provide portable build commands and the fork installer / Добавляет команды переносимой сборки и установщик. | 4 |
 | 10 | [10-ci-build.patch](10-ci-build.patch) | Pin toolchains and package inputs, and run the fork build and publication checks / Закрепляет инструменты и входы сборки, запускает проверки пакетов и публикации. | 11 |
-| 11 | [11-project-docs.patch](11-project-docs.patch) | Document fork setup, support and license terms / Описывает установку, поддержку и условия лицензирования форка. | 4 |
+| 11 | [11-project-docs.patch](11-project-docs.patch) | Document fork setup, support and license terms / Описывает установку, поддержку и условия лицензирования форка. | 3 |
 | 12 | [12-fork-records.patch](12-fork-records.patch) | Record fork changes, upstream reviews and qualification measurements / Хранит журнал изменений, разбор upstream и результаты проверок. | 2 |
