@@ -39,7 +39,7 @@ from open_terminal.env import API_KEY, BINARY_FILE_MIME_PREFIXES, CORS_ALLOWED_O
 from open_terminal.utils.search_preview import MAX_MATCH_CONTENT, bounded_match_content
 from open_terminal.env import sanitized_environ
 from open_terminal.utils.runner import PipeRunner, ProcessRunner, create_runner, read_pty, write_pty, PtyRunner
-from open_terminal.utils.fs import UserFS, FullFileResponse as FileResponse, TemporaryFileResponse, text_file_response, line_range_offsets
+from open_terminal.utils.fs import UserFS, FullFileResponse as FileResponse, TemporaryFileResponse, edit_patch, text_file_response, line_range_offsets
 from open_terminal.utils.limits import (CHUNK_SIZE, NormalizeNullQueryMiddleware, run_io, run_worker)
 from open_terminal.utils.file_compare import CompareRequest, run_comparison
 from open_terminal.utils.git import GitRepository
@@ -1066,11 +1066,24 @@ async def write_file(http_request: Request, request: WriteRequest, fs: UserFS = 
     session_id = http_request.headers.get("x-session-id")
     session_cwd = _get_session_cwd(session_id, fs) if session_id else None
     target = fs.resolve_path(request.path, cwd=session_cwd)
+    created = not await fs.exists(target)
+    previous = None
+    if not created:
+        try:
+            previous = await fs.read_text(target)
+        except (OSError, UnicodeDecodeError):
+            pass
     try:
         await fs.write(target, request.content)
     except (OSError, subprocess.CalledProcessError) as e:
         raise HTTPException(status_code=400, detail=str(e))
-    return {"path": target, "size": len(request.content.encode())}
+    result = {"path": target, "size": len(request.content.encode()), "created": created}
+    # A new file's diff is the content itself, which the caller already has.
+    if previous is not None:
+        patch = await run_io(edit_patch, target, previous, request.content)
+        if patch is not None:
+            result["patch"] = patch
+    return result
 
 
 @app.post(
@@ -1156,6 +1169,7 @@ async def replace_file_content(http_request: Request, request: ReplaceRequest, f
         content = await fs.read_text(target)
     except OSError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    original = content
 
     for chunk in request.replacements:
         if chunk.start_line or chunk.end_line:
@@ -1187,7 +1201,11 @@ async def replace_file_content(http_request: Request, request: ReplaceRequest, f
     except OSError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    return {"path": target, "size": len(content.encode())}
+    result = {"path": target, "size": len(content.encode())}
+    patch = await run_io(edit_patch, target, original, content)
+    if patch is not None:
+        result["patch"] = patch
+    return result
 
 
 @app.get(

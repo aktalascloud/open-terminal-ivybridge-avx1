@@ -6,7 +6,10 @@ import asyncio
 import contextlib
 import errno
 import json
+import logging
 import os
+import re
+import shlex
 import shutil
 import signal
 import time
@@ -15,11 +18,30 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from fastapi import HTTPException, WebSocket
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from open_terminal.env import sanitized_environ
 from open_terminal.utils.git import git_environment
-from . import codex, claude_code, cursor, grok, opencode, cline, gemini, pi
+from . import (
+    acp,
+    codex,
+    claude_code,
+    cursor,
+    grok,
+    opencode,
+    cline,
+    gemini,
+    pi,
+    hermes,
+    antigravity,
+    copilot,
+    goose,
+    qwen,
+)
+
+log = logging.getLogger(__name__)
 
 LIMIT = 16 * 1024 * 1024
 PROVIDERS = {
@@ -31,7 +53,62 @@ PROVIDERS = {
     "cline": cline,
     "gemini": gemini,
     "pi": pi,
+    "hermes": hermes,
+    "antigravity": antigravity,
+    "copilot": copilot,
+    "goose": goose,
+    "qwen": qwen,
 }
+
+
+class ConfiguredAcp:
+    """An ACP agent declared in OPEN_TERMINAL_ACP_AGENTS, run with plain ACP and no per-agent handling."""
+
+    COMMAND_ENV = ""
+
+    def __init__(self, name: str, command: list[str]):
+        self.NAME = name
+        self.BINARY, *self.args = command
+
+    def arguments(self, options):
+        return list(self.args)
+
+    async def discover(self, send, response, cwd):
+        return await acp.discover(send, response, cwd, auth_method=None)
+
+
+def configured_agents(raw: str | None) -> dict[str, ConfiguredAcp]:
+    """Read `{"id": {"name": ..., "command": ...}}`; ids get an `acp-` prefix so they never shadow built-ins."""
+    try:
+        entries = json.loads(raw or "{}")
+    except json.JSONDecodeError:
+        log.warning(
+            "OPEN_TERMINAL_ACP_AGENTS is not valid JSON; no extra agents loaded"
+        )
+        return {}
+    if not isinstance(entries, dict):
+        log.warning(
+            "OPEN_TERMINAL_ACP_AGENTS must be a JSON object; no extra agents loaded"
+        )
+        return {}
+    agents = {}
+    for key, spec in entries.items():
+        spec = spec if isinstance(spec, dict) else {}
+        try:
+            command = spec.get("command")
+            command = shlex.split(command) if isinstance(command, str) else []
+        except (TypeError, ValueError):
+            command = []
+        if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,47}", str(key)) or not command:
+            log.warning(
+                "Skipping ACP agent %r: it needs a lowercase id and a command", key
+            )
+            continue
+        agents[f"acp-{key}"] = ConfiguredAcp(str(spec.get("name") or key), command)
+    return agents
+
+
+PROVIDERS.update(configured_agents(os.environ.get("OPEN_TERMINAL_ACP_AGENTS")))
 sessions: dict[str, Session] = {}
 creation_lock = asyncio.Lock()
 
@@ -41,7 +118,13 @@ class Start(BaseModel):
     cwd: str | None = None
     model: str | None = Field(default=None, max_length=256)
     resume: str | None = Field(default=None, pattern=r"^[a-zA-Z0-9_-]{1,128}$")
+    # Continue `resume` from this native turn; later turns are left out.
+    resume_at: str | None = Field(default=None, pattern=r"^[a-zA-Z0-9_-]{1,128}$")
+    # Continue in a new conversation copied from `resume`, leaving the original as it was.
+    fork: bool = False
     instructions: str = ""
+    # The caller's tool permission mode; providers with their own auto review map Auto to it.
+    approval_mode: Literal["ask", "auto", "full"] | None = None
 
 
 def identity(fs):

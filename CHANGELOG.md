@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.17.20] - 2026-11-16
+
+### Added
+
+- File edits made by the assistant can now show the added and removed lines, with line numbers, in chat. This also works when the assistant saves over an existing text file. Requires an updated Open WebUI. Full rewrites may show the replacement text instead of a line-by-line comparison.
+
+### Fixed
+
+- Fixed new uploads becoming unreadable in multi-user setups, causing file reads, previews, and later edits to fail with permission errors. Files uploaded before this update may still need their permissions repaired.
+
+## [0.17.19] - 2026-11-16
+
+### Added
+
+- Added Hermes, Antigravity, GitHub Copilot, Goose, and Qwen Code as coding agents you can use in Open WebUI chats. Install each agent and set up its login or model provider as the user running Open Terminal. Requires an updated Open WebUI.
+- You can now add other ACP-compatible coding agents, such as Factory Droid or Kiro, without changing Open Terminal's code. Set their names and launch commands in `OPEN_TERMINAL_ACP_AGENTS`, then restart Open Terminal; see the [agent setup instructions](README.md#coding-agents-in-chat). Requires an updated Open WebUI and agents that are already installed and set up. Choosing Auto still asks for approval unless Open WebUI has a separate approval reviewer configured.
+- Choosing Auto for tool approvals in Open WebUI now lets Claude Code and Grok review and approve routine actions themselves. Actions they send back for approval still go through Open WebUI's approval checks. Requires an updated Open WebUI and agent versions that support Auto mode.
+
+## [0.17.18] - 2026-11-16
+
+### Fixed
+
+- Fixed dragging windows and selecting text on Mac desktops, both in the desktop viewer and when asking the assistant to drag.
+- Reduced desktop viewer lag during rapid mouse movement, especially on Mac. The viewer follows your latest pointer position instead of replaying every movement, while keeping clicks, typing, and scrolling in order. Screen updates no longer wait for all pending mouse movements to finish.
+
 ## [0.17.17] - 2026-11-15
 
 ### Fixed
