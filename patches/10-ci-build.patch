@@ -443,7 +443,7 @@ index 0000000000000000000000000000000000000000..e874280cb0d73c156847d9c271a8253f
 +    verify_archive(target)
 diff --git a/.avx1/project.json b/.avx1/project.json
 new file mode 100644
-index 0000000000000000000000000000000000000000..c3bdf3709e77f0e9765770546075dcd073e45a83
+index 0000000000000000000000000000000000000000..10d2af26f4f85434747c62f657b4e56b38c71d78
 --- /dev/null
 +++ b/.avx1/project.json
 @@ -0,0 +1,13 @@
@@ -456,7 +456,7 @@ index 0000000000000000000000000000000000000000..c3bdf3709e77f0e9765770546075dcd0
 +  "description": "Open Terminal for Windows/Ivy Bridge AVX1: agent/MCP fixes, credential isolation, Russian UI integration / дополненный русский интерфейс в WebUI и Desktop.",
 +  "repository": "aktalascloud/open-terminal-ivybridge-avx1",
 +  "channel": "latest",
-+  "upstream_commit": "711972fab6a9e435e154862933357d1631e87f90",
++  "upstream_commit": "31e77f21bb264a856cbcd46cb14e9b2c4f4e1662",
 +  "stable_tag": "v0.17.20",
 +  "distribution": "single unified latest"
 +}

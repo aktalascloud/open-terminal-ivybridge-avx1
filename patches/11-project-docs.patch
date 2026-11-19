@@ -46,30 +46,33 @@ index 16464a59e72f7b07c4f2ce3f6825ed101976ebdd..e554af0e0e71b2b3c222c18ae3821954
 +OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 +SOFTWARE.
 diff --git a/README.md b/README.md
-index bc88fd3ee77335d9b54d3f141d35213d17e7679e..eecb2c5c16c6de0bfd73ff970155afa32c95837b 100644
+index 96e7d893067b0bd32e648ff2ab0ecd07e0df184a..8385f9b133a7a0025399014b1d4e59d3d29cbbef 100644
 --- a/README.md
 +++ b/README.md
-@@ -1,147 +1,9 @@
+@@ -1,150 +1,19 @@
 -# Open Terminal
-+# Open Terminal AVX1
++# Open Terminal for Ivy Bridge · AVX1
  
 -**A computer for your AI agents.** Run commands, search and manage files, execute code, and work with browsers and desktops through a self-hosted REST API. Connect it to [Open WebUI](https://github.com/open-webui/open-webui), or use it with your own tools.
-+[Upstream](https://github.com/open-webui/open-terminal) · [ZIP + Install.cmd](https://github.com/aktalascloud/open-terminal-ivybridge-avx1/releases/latest) · [Applied patches](patches/README.md)
++[Русский](#русский) · [Release / Скачать](https://github.com/aktalascloud/open-terminal-ivybridge-avx1/releases/tag/daily-20261117-3d956802) · [Guide / Документация](patches/README.md) · [Evidence / Данные](https://github.com/aktalascloud/open-terminal-ivybridge-avx1/blob/d03cb1dca9aa481d0f78ab8743d94dd8edd33ce6/.avx1/measurements/latest.json) · [Upstream](https://github.com/open-webui/open-terminal)
  
 -[Documentation](https://docs.openwebui.com/features/open-terminal/) · [Changelog](CHANGELOG.md) · [Report an issue](https://github.com/open-webui/open-terminal/issues)
-+Build with Python 3.12+, Git and GitHub CLI: `Build.cmd status`, then `Build.cmd build`. CI and checks are in `.avx1/`. Keep user data, model weights and credentials outside the source checkout.
++A standalone Windows service that exposes terminal and native agent tools to Open WebUI. It covers Ivy Bridge AVX1 and includes bounded output and identity-scoped tool results.
  
 -[![Open Terminal in Open WebUI](https://docs.openwebui.com/assets/images/open-terminal-file-browser-54b7cab404a39c11532ca356b40ff6ed.png)](https://docs.openwebui.com/features/open-terminal/)
-+Независимый Windows-сервис, авторизация с сохранённым ключом, MCP и ограниченный поиск. Сессии и настройки хранятся отдельно.
++**Quick start.** Extract the ZIP and run `Install.cmd`. For a source build, use `Build.cmd status` and `Build.cmd build` with Python 3.12+, Git and GitHub CLI. [Applied patches](patches/README.md).
  
 -[![PyPI](https://img.shields.io/pypi/v/open-terminal)](https://pypi.org/project/open-terminal/)
 -[![License](https://img.shields.io/github/license/open-webui/open-terminal)](LICENSE)
 -[![GitHub stars](https://img.shields.io/github/stars/open-webui/open-terminal?style=social)](https://github.com/open-webui/open-terminal)
--
++**Evidence.** The November 17 Windows release ships a 2.59 MB ZIP, with its SHA-256, exact source and patch links. Build records cover selected checks without needing model weights.
+ 
 -## Installation
--
++## Русский
+ 
 -### Docker
--
++Отдельный сервис Windows для терминала и инструментов нативных агентов Open WebUI. Подходит для Ivy Bridge AVX1, ограничивает историю вывода и привязывает результаты инструментов к пользователю.
+ 
 -```bash
 -docker run -d --name open-terminal --restart unless-stopped \
 -  -p 8000:8000 \
@@ -77,9 +80,11 @@ index bc88fd3ee77335d9b54d3f141d35213d17e7679e..eecb2c5c16c6de0bfd73ff970155afa3
 -  -e OPEN_TERMINAL_API_KEY=your-secret-key \
 -  ghcr.io/open-webui/open-terminal:latest
 -```
--
++**Запуск.** Распакуйте ZIP и запустите `Install.cmd`. Для сборки из исходников выполните `Build.cmd status` и `Build.cmd build` с Python 3.12+, Git и GitHub CLI. [Патчи](patches/README.md).
+ 
 -The API is available at `http://localhost:8000`, with interactive docs at [/docs](http://localhost:8000/docs). The volume keeps your files between container updates. Replace `your-secret-key` with your own key.
--
++**Проверка.** Windows-выпуск от 17 ноября поставляется ZIP размером 2,59 МБ. В выпуске указаны SHA-256, точные исходники и патчи. Для заявленных проверок сборки веса модели не нужны.
+ 
 -| Image tag | Includes |
 -| --- | --- |
 -| `latest` | Full toolkit: Python, Node.js, build tools, browser, desktop, and document tools |
@@ -103,6 +108,9 @@ index bc88fd3ee77335d9b54d3f141d35213d17e7679e..eecb2c5c16c6de0bfd73ff970155afa3
 -pip install open-terminal
 -open-terminal run --host 0.0.0.0 --port 8000
 -```
+-
+-The [Open Machine alias package](packages/open-machine) provides the same CLI as
+-`open-machine` and depends on `open-terminal`.
 -
 -Linux defaults to a separate XFCE desktop. Select GNOME explicitly with `--desktop-environment gnome`. See [desktop setup](docs/configuration.md#desktop) for required packages. Keep your existing display manager if prompted during installation. Docker `latest` includes XFCE and its dependencies. Sharing your actual logged-in desktop requires `--desktop-mode host`.
 -
@@ -201,7 +209,7 @@ index bc88fd3ee77335d9b54d3f141d35213d17e7679e..eecb2c5c16c6de0bfd73ff970155afa3
 -## License
 -
 -[MIT](LICENSE). Bundled third-party tools retain their own licenses and terms.
-+[Checks and measurements](.avx1/measurements/latest.json)
++[All projects / Все проекты](https://github.com/aktalascloud)
 diff --git a/SECURITY.md b/SECURITY.md
 index c20b303529a703ce9cc71fdf2a496ce641c06269..cc86e702f1ac18079178f7c41aa35e093e6605bd 100644
 --- a/SECURITY.md
