@@ -1890,6 +1890,8 @@ async def execute(
             # Lets windows opened by commands appear on the user's running desktop.
             env = {**desktop.command_env, **(request.env or {})}
 
+    env = dict(env or {})
+    env.setdefault("TERM", os.environ.get("TERM") or TERMINAL_TERM)
     runner = await create_runner(request.command, cwd, env, run_as_user=fs.username)
 
     process_id = time.strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:6]
