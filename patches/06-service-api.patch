@@ -777,7 +777,7 @@ index 02d032170fac7ed6fdc952a7a5b91a8aa9ef57b0..c171fa0fb77ee2085ded6ae46280dd7e
  
  if __name__ == "__main__":
 diff --git a/open_terminal/main.py b/open_terminal/main.py
-index b9e687e1db61a24d045a4a79c110465007e795b6..8978021aa810e820e228b4e715f8f786a15b429d 100644
+index b9e687e1db61a24d045a4a79c110465007e795b6..324303b77e9e4ceae521ec347e38181d43a29cfe 100644
 --- a/open_terminal/main.py
 +++ b/open_terminal/main.py
 @@ -28,13 +28,15 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request, UploadFile,
@@ -934,7 +934,16 @@ index b9e687e1db61a24d045a4a79c110465007e795b6..8978021aa810e820e228b4e715f8f786
                                      if len(content_matches) >= MAX_CONTENT_MATCHES_PER_FILE:
                                          break
                      except (OSError, UnicodeError):
-@@ -1883,7 +1913,7 @@ async def execute(
+@@ -1860,6 +1890,8 @@ async def execute(
+             # Lets windows opened by commands appear on the user's running desktop.
+             env = {**desktop.command_env, **(request.env or {})}
+ 
++    env = dict(env or {})
++    env.setdefault("TERM", os.environ.get("TERM") or TERMINAL_TERM)
+     runner = await create_runner(request.command, cwd, env, run_as_user=fs.username)
+ 
+     process_id = time.strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:6]
+@@ -1883,7 +1915,7 @@ async def execute(
          except asyncio.TimeoutError:
              pass
  
@@ -943,7 +952,7 @@ index b9e687e1db61a24d045a4a79c110465007e795b6..8978021aa810e820e228b4e715f8f786
          "id": process_id,
          "command": request.command,
          "cwd": cwd,
-@@ -1936,7 +1966,7 @@ async def get_status(
+@@ -1936,7 +1968,7 @@ async def get_status(
          except asyncio.TimeoutError:
              pass
  
